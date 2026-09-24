@@ -1,11 +1,11 @@
 <section>
     <header>
-        <h2 class="text-lg font-medium text-gray-900">
-            {{ __('Update Password') }}
+        <h2 class="font-display text-lg font-bold text-brand-900">
+            {{ __('Actualizar contraseña') }}
         </h2>
 
-        <p class="mt-1 text-sm text-gray-600">
-            {{ __('Ensure your account is using a long, random password to stay secure.') }}
+        <p class="mt-1 text-sm text-brand-400">
+            {{ __('Usa una contraseña larga y aleatoria para mayor seguridad.') }}
         </p>
     </header>
 

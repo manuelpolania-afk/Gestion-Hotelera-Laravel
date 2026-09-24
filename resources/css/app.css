@@ -1,3 +1,195 @@
+@import url('https://fonts.bunny.net/css?family=figtree:400,500,600|poppins:500,600,700,800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    body {
+        @apply bg-brand-50 text-brand-900 antialiased;
+    }
+
+    h1, h2, h3, h4, h5 {
+        @apply font-display tracking-tight;
+    }
+
+    /* Nicer default focus ring */
+    :focus-visible {
+        @apply outline-none;
+    }
+}
+
+@layer components {
+    /* ---------- Layout helpers ---------- */
+    .container-page {
+        @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
+    }
+
+    .page-title {
+        @apply font-display text-2xl font-bold text-brand-900 sm:text-[1.75rem];
+    }
+
+    .page-subtitle {
+        @apply mt-1 text-sm text-brand-400;
+    }
+
+    /* ---------- Cards ---------- */
+    .card {
+        @apply rounded-2xl border border-brand-100 bg-white shadow-card;
+    }
+
+    .card-pad {
+        @apply p-5 sm:p-6;
+    }
+
+    .card-hover {
+        @apply transition duration-200 hover:-translate-y-0.5 hover:shadow-card-hover;
+    }
+
+    /* ---------- Buttons ---------- */
+    .btn {
+        @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-bold
+               transition-all duration-200 ease-out focus:outline-none focus:ring-4 focus:ring-offset-2
+               active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0
+               disabled:active:scale-100;
+    }
+
+    .btn-sm {
+        @apply rounded-full px-4 py-2 text-xs;
+    }
+
+    .btn-primary {
+        @apply bg-gradient-to-b from-gold-300 to-gold-400 text-brand-900 shadow-btn-gold
+               hover:-translate-y-0.5 hover:from-gold-200 hover:to-gold-300 hover:shadow-btn-gold-hover
+               focus:ring-gold-200;
+    }
+
+    .btn-dark {
+        @apply bg-gradient-to-b from-brand-800 to-brand-900 text-white shadow-btn-dark
+               hover:-translate-y-0.5 hover:from-brand-700 hover:to-brand-800 hover:shadow-btn-dark-hover
+               focus:ring-brand-300;
+    }
+
+    .btn-outline {
+        @apply border-2 border-brand-200 bg-white text-brand-700
+               hover:-translate-y-0.5 hover:border-gold-300 hover:bg-gold-50 hover:text-brand-900
+               focus:ring-brand-200;
+    }
+
+    .btn-ghost {
+        @apply text-brand-500 hover:bg-brand-100 hover:text-brand-800 focus:ring-brand-200;
+    }
+
+    .btn-danger {
+        @apply bg-gradient-to-b from-red-500 to-red-600 text-white shadow-btn-danger
+               hover:-translate-y-0.5 hover:from-red-400 hover:to-red-500 hover:shadow-btn-danger-hover
+               focus:ring-red-200;
+    }
+
+    /* ---------- Table Action Buttons ---------- */
+    .btn-action-view {
+        @apply inline-flex items-center gap-1.5 rounded-lg border border-brand-200/80 bg-brand-50/80 px-2.5 py-1.5 text-xs font-semibold text-brand-700 shadow-sm
+               transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-brand-800 hover:bg-brand-900 hover:text-white hover:shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-brand-400 focus:ring-offset-1 active:scale-95;
+    }
+
+    .btn-action-edit {
+        @apply inline-flex items-center gap-1.5 rounded-lg border border-gold-200 bg-gold-50 px-2.5 py-1.5 text-xs font-semibold text-gold-900 shadow-sm
+               transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-gold-400 hover:bg-gold-400 hover:text-brand-950 hover:shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-gold-400 focus:ring-offset-1 active:scale-95;
+    }
+
+    .btn-action-danger {
+        @apply inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-xs font-semibold text-rose-700 shadow-sm
+               transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-rose-600 hover:bg-rose-600 hover:text-white hover:shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 active:scale-95;
+    }
+
+    .btn-action-disabled {
+        @apply inline-flex items-center gap-1.5 rounded-lg border border-brand-100 bg-brand-50/60 px-2.5 py-1.5 text-xs font-medium text-brand-400 select-none;
+    }
+
+    .btn-block {
+        @apply w-full;
+    }
+
+    /* ---------- Badges ---------- */
+    .badge {
+        @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold;
+    }
+
+    .badge-green  { @apply bg-emerald-100 text-emerald-700; }
+    .badge-red    { @apply bg-red-100 text-red-700; }
+    .badge-yellow { @apply bg-amber-100 text-amber-700; }
+    .badge-blue   { @apply bg-brand-100 text-brand-700; }
+    .badge-gray   { @apply bg-brand-100 text-brand-500; }
+
+    .badge-outline-green {
+        @apply border border-emerald-300 bg-emerald-50 text-emerald-600;
+    }
+
+    /* ---------- Forms ---------- */
+    .form-label {
+        @apply mb-1.5 block text-sm font-medium text-brand-700;
+    }
+
+    .form-input,
+    .form-select,
+    .form-textarea {
+        @apply block w-full rounded-xl border-brand-200 bg-white text-sm text-brand-900 shadow-sm
+               placeholder:text-brand-300
+               focus:border-gold-400 focus:ring-gold-400;
+    }
+
+    .form-hint {
+        @apply mt-1 text-xs text-brand-400;
+    }
+
+    /* ---------- Alerts ---------- */
+    .alert {
+        @apply rounded-xl border px-4 py-3 text-sm;
+    }
+
+    .alert-success { @apply border-emerald-200 bg-emerald-50 text-emerald-800; }
+    .alert-error   { @apply border-red-200 bg-red-50 text-red-800; }
+    .alert-info    { @apply border-brand-200 bg-brand-50 text-brand-800; }
+    .alert-warning { @apply border-amber-200 bg-amber-50 text-amber-800; }
+
+    /* ---------- Tables ---------- */
+    .table-card {
+        @apply overflow-hidden rounded-2xl border border-brand-100 bg-white shadow-card;
+    }
+
+    .table-base {
+        @apply min-w-full divide-y divide-brand-100 text-left;
+    }
+
+    .table-base thead {
+        @apply bg-brand-50/70;
+    }
+
+    .table-base th {
+        @apply px-4 py-3 text-xs font-semibold uppercase tracking-wide text-brand-400;
+    }
+
+    .table-base tbody {
+        @apply divide-y divide-brand-100;
+    }
+
+    .table-base td {
+        @apply px-4 py-3 text-sm text-brand-600;
+    }
+
+    .table-base tbody tr {
+        @apply transition-colors hover:bg-brand-50/60;
+    }
+
+    /* ---------- Misc ---------- */
+    .link {
+        @apply font-medium text-brand-600 underline-offset-2 hover:text-brand-800 hover:underline;
+    }
+
+    .empty-state {
+        @apply rounded-2xl border border-dashed border-brand-200 bg-white p-10 text-center text-sm text-brand-400;
+    }
+}

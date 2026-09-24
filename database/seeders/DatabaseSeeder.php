@@ -4,7 +4,9 @@ namespace Database\Seeders;
 
 use App\Models\Role;
 use App\Models\User;
+use Database\Seeders\HabitacionSeeder;
 use Database\Seeders\RoleSeeder;
+use Database\Seeders\ZonaSeeder;
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -19,6 +21,8 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RoleSeeder::class,
+            ZonaSeeder::class,
+            HabitacionSeeder::class,
         ]);
 
         // User::factory(10)->create();

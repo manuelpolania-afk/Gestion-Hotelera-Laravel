@@ -15,6 +15,7 @@ class Habitacion extends Model
     protected $fillable = [
         'zona_id',
         'nombre_habitacion',
+        'descripcion',
         'capacidad',
         'valor',
         'estado',

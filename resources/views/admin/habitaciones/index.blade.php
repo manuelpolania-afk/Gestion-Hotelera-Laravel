@@ -1,117 +1,109 @@
-<x-app-layout>
+<x-app-layout title="Habitaciones">
     <x-slot name="header">
-        <div class="flex items-center justify-between">
-            <h2 class="text-xl font-semibold leading-tight text-gray-800">
-                Habitaciones
-            </h2>
-            <a href="{{ route('admin.habitaciones.create') }}"
-               class="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+                <h2 class="page-title">Habitaciones</h2>
+                <p class="page-subtitle">{{ $habitaciones->count() }} habitaciones registradas.</p>
+            </div>
+            <a href="{{ route('admin.habitaciones.create') }}" class="btn btn-primary">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
                 Nueva habitación
             </a>
         </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="container-page py-8">
 
-            @if (session('success'))
-                <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-700">
-                    {{ session('success') }}
-                </div>
-            @endif
+        @if (session('success'))
+            <div class="alert alert-success mb-4">{{ session('success') }}</div>
+        @endif
 
-            @if ($habitaciones->isEmpty())
-                <p class="text-gray-500">No hay habitaciones registradas todavía.</p>
-            @else
-                <div class="overflow-hidden rounded-lg shadow">
-                    <table class="min-w-full divide-y divide-gray-200 bg-white">
-                        <thead class="bg-gray-50">
+        @if ($habitaciones->isEmpty())
+            <div class="empty-state">No hay habitaciones registradas todavía.</div>
+        @else
+            <div class="table-card overflow-x-auto">
+                <table class="table-base">
+                    <thead>
+                        <tr>
+                            <th>Habitación</th>
+                            <th>Zona</th>
+                            <th>Capacidad</th>
+                            <th>Valor</th>
+                            <th>Estado</th>
+                            <th class="text-right">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($habitaciones as $habitacion)
+                            @php
+                                $badge = match($habitacion->estado) {
+                                    'Disponible'        => 'badge-green',
+                                    'Ocupada'           => 'badge-red',
+                                    'Mantenimiento'     => 'badge-yellow',
+                                    default             => 'badge-gray',
+                                };
+                            @endphp
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Imagen</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Nombre</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Zona</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Capacidad</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Valor</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Estado</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @foreach ($habitaciones as $habitacion)
-                                <tr>
-                                    {{-- Thumbnail --}}
-                                    <td class="px-4 py-3">
+                                <td>
+                                    <div class="flex items-center gap-3">
                                         @if ($habitacion->imagenPrincipal)
                                             <img src="{{ asset('storage/' . $habitacion->imagenPrincipal->ruta) }}"
                                                  alt="{{ $habitacion->nombre_habitacion }}"
-                                                 class="h-14 w-20 rounded object-cover">
+                                                 class="h-12 w-16 rounded-lg object-cover">
                                         @else
-                                            <div class="flex h-14 w-20 items-center justify-center rounded bg-gray-100 text-xs text-gray-400">
-                                                Sin imagen
+                                            <div class="grid h-12 w-16 place-items-center rounded-lg bg-brand-100 text-brand-300">
+                                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.16-5.16a2.25 2.25 0 0 1 3.18 0l5.16 5.16m-1.5-1.5 1.41-1.41a2.25 2.25 0 0 1 3.18 0l2.91 2.91m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Z" /></svg>
                                             </div>
                                         @endif
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                                        {{ $habitacion->nombre_habitacion }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        {{ $habitacion->zona->codigo_zona }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        {{ $habitacion->capacidad }} pers.
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        ${{ number_format($habitacion->valor, 2) }}
-                                    </td>
-
-                                    {{-- Badge de estado --}}
-                                    <td class="px-4 py-3">
-                                        @php
-                                            $badgeClasses = match($habitacion->estado) {
-                                                'Disponible'       => 'bg-green-100 text-green-800',
-                                                'Ocupada'          => 'bg-red-100 text-red-800',
-                                                'Mantenimiento'    => 'bg-yellow-100 text-yellow-800',
-                                                'Fuera de servicio' => 'bg-gray-100 text-gray-600',
-                                                default            => 'bg-gray-100 text-gray-600',
-                                            };
-                                        @endphp
-                                        <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-semibold {{ $badgeClasses }}">
-                                            {{ $habitacion->estado }}
-                                        </span>
-                                    </td>
-
-                                    {{-- Acciones --}}
-                                    <td class="space-x-2 px-4 py-3 text-sm">
-                                        <a href="{{ route('habitaciones.show', $habitacion) }}"
-                                           class="text-indigo-600 hover:underline">Ver</a>
-
-                                        <a href="{{ route('admin.habitaciones.edit', $habitacion) }}"
-                                           class="text-yellow-600 hover:underline">Editar</a>
-
+                                        <span class="font-medium text-brand-900">{{ $habitacion->nombre_habitacion }}</span>
+                                    </div>
+                                </td>
+                                <td>{{ $habitacion->zona->codigo_zona }}</td>
+                                <td>{{ $habitacion->capacidad }} pers.</td>
+                                <td class="font-medium text-brand-800">${{ number_format($habitacion->valor, 0, ',', '.') }}</td>
+                                <td><span class="badge {{ $badge }}">{{ $habitacion->estado }}</span></td>
+                                <td>
+                                    <div class="flex items-center justify-end gap-2 text-sm font-medium">
+                                        <a href="{{ route('habitaciones.show', $habitacion) }}" class="btn-action-view" title="Ver habitación">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                                            </svg>
+                                            <span>Ver</span>
+                                        </a>
+                                        <a href="{{ route('admin.habitaciones.edit', $habitacion) }}" class="btn-action-edit" title="Editar habitación">
+                                            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" />
+                                            </svg>
+                                            <span>Editar</span>
+                                        </a>
                                         @if ($habitacion->estado !== 'Fuera de servicio')
-                                            <form method="POST"
-                                                  action="{{ route('admin.habitaciones.destroy', $habitacion) }}"
-                                                  class="inline"
+                                            <form method="POST" action="{{ route('admin.habitaciones.destroy', $habitacion) }}"
                                                   onsubmit="return confirm('¿Dar de baja esta habitación?')">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:underline">
-                                                    Dar de baja
+                                                <button type="submit" class="btn-action-danger" title="Dar de baja habitación">
+                                                    <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                                                    </svg>
+                                                    <span>Dar de baja</span>
                                                 </button>
                                             </form>
+                                        @else
+                                            <span class="btn-action-disabled" title="Esta habitación ya se encuentra fuera de servicio">
+                                                <svg class="h-3.5 w-3.5 text-brand-300" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 0 0 5.636 5.636m12.728 12.728A9 9 0 0 1 5.636 5.636m12.728 12.728L5.636 5.636" />
+                                                </svg>
+                                                <span>De baja</span>
+                                            </span>
                                         @endif
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-
-        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 </x-app-layout>

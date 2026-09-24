@@ -1,92 +1,58 @@
-<x-app-layout>
+<x-app-layout title="Panel de administración">
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-gray-800">
-            Panel de Administración
-        </h2>
+        <div>
+            <h2 class="page-title">Panel de Administración</h2>
+            <p class="page-subtitle">Resumen general y accesos rápidos a la gestión del hotel.</p>
+        </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="container-page py-8">
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        @php
+            $totalZonas = \App\Models\Zona::count();
+            $totalHabitaciones = \App\Models\Habitacion::count();
+            $disponibles = \App\Models\Habitacion::where('estado', 'Disponible')->count();
+            $totalUsuarios = \App\Models\User::count();
+            $reservasPendientes = \App\Models\Reserva::where('estado_reserva', 'Pendiente')->count();
+            $reservasActivas = \App\Models\Reserva::whereIn('estado_reserva', ['Pendiente', 'Confirmada'])->count();
+        @endphp
 
-                {{-- Zonas --}}
-                <div class="flex flex-col justify-between rounded-lg bg-white p-6 shadow">
-                    <div>
-                        <div class="mb-3 inline-flex rounded-full bg-blue-100 p-3">
-                            <svg class="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498 4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 0 0-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0Z" />
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900">Zonas</h3>
-                        <p class="mt-1 text-sm text-gray-500">Gestiona las zonas del hotel donde se agrupan las habitaciones.</p>
+        {{-- Stats --}}
+        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            @foreach ([
+                ['Habitaciones', $totalHabitaciones, $disponibles.' disponibles', 'M2.25 12 11.2 3c.44-.44 1.15-.44 1.6 0L21.75 12M4.5 9.75v10.13c0 .62.5 1.12 1.13 1.12H9.75v-4.88c0-.62.5-1.12 1.13-1.12h2.25c.62 0 1.12.5 1.12 1.12V21h4.13c.62 0 1.12-.5 1.12-1.13V9.75'],
+                ['Zonas', $totalZonas, 'Sectores del hotel', 'M9 6.75V15m6-6v8.25m.5 3.5 4.88-2.44c.38-.19.62-.58.62-1V4.82c0-.84-.88-1.38-1.63-1L15.5 5.75c-.32.16-.69.16-1 0L9.5 3.25c-.32-.16-.69-.16-1 0L3.62 5.69C3.24 5.88 3 6.27 3 6.7v12.48c0 .84.88 1.38 1.63 1l3.87-1.93c.32-.16.69-.16 1 0l4.99 2.5c.32.15.69.15 1 0'],
+                ['Reservas activas', $reservasActivas, $reservasPendientes.' pendientes', 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5A2.25 2.25 0 0 1 5.25 5.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75'],
+                ['Usuarios', $totalUsuarios, 'Registrados', 'M15 19.13a9.38 9.38 0 0 0 2.63.37 9.34 9.34 0 0 0 4.12-.95 4.13 4.13 0 0 0-7.53-2.5M15 19.13v-.11c0-1.11-.29-2.16-.79-3.07M15 19.13v.1A12.32 12.32 0 0 1 8.62 21c-2.33 0-4.51-.65-6.37-1.77v-.1a6.38 6.38 0 0 1 11.96-3.08M12 6.38a3.38 3.38 0 1 1-6.75 0 3.38 3.38 0 0 1 6.75 0Z'],
+            ] as [$label, $value, $sub, $icon])
+                <div class="card card-pad">
+                    <div class="flex items-center justify-between">
+                        <span class="grid h-10 w-10 place-items-center rounded-xl bg-brand-900 text-gold-400">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="{{ $icon }}" /></svg>
+                        </span>
                     </div>
-                    <div class="mt-4">
-                        <a href="{{ route('admin.zonas.index') }}"
-                           class="inline-flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                            Ver zonas
-                        </a>
-                    </div>
+                    <p class="mt-4 font-display text-3xl font-extrabold text-brand-900">{{ $value }}</p>
+                    <p class="text-sm font-medium text-brand-600">{{ $label }}</p>
+                    <p class="mt-0.5 text-xs text-brand-400">{{ $sub }}</p>
                 </div>
+            @endforeach
+        </div>
 
-                {{-- Habitaciones --}}
-                <div class="flex flex-col justify-between rounded-lg bg-white p-6 shadow">
-                    <div>
-                        <div class="mb-3 inline-flex rounded-full bg-indigo-100 p-3">
-                            <svg class="h-6 w-6 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900">Habitaciones</h3>
-                        <p class="mt-1 text-sm text-gray-500">Administra las habitaciones, sus imágenes, capacidad y estado.</p>
-                    </div>
-                    <div class="mt-4">
-                        <a href="{{ route('admin.habitaciones.index') }}"
-                           class="inline-flex w-full items-center justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
-                            Ver habitaciones
-                        </a>
-                    </div>
+        {{-- Módulos --}}
+        <h3 class="mb-4 mt-10 font-display text-lg font-bold text-brand-900">Gestión</h3>
+        <div class="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-4">
+            @foreach ([
+                ['Zonas', 'Agrupa las habitaciones por sector del hotel.', route('admin.zonas.index'), 'Ver zonas'],
+                ['Habitaciones', 'Administra habitaciones, imágenes, capacidad y estado.', route('admin.habitaciones.index'), 'Ver habitaciones'],
+                ['Reservas', 'Consulta y actualiza el estado de las reservas.', route('admin.reservas.index'), 'Ver reservas'],
+                ['Usuarios', 'Consulta los usuarios registrados y sus roles.', route('admin.usuarios.index'), 'Ver usuarios'],
+            ] as [$title, $desc, $url, $cta])
+                <div class="card card-pad flex flex-col">
+                    <h4 class="font-display text-base font-bold text-brand-900">{{ $title }}</h4>
+                    <p class="mt-1 flex-1 text-sm text-brand-500">{{ $desc }}</p>
+                    <a href="{{ $url }}" class="btn btn-outline btn-block mt-4">{{ $cta }}</a>
                 </div>
-
-                {{-- Reservas (módulo pendiente) --}}
-                <div class="flex flex-col justify-between rounded-lg bg-white p-6 shadow">
-                    <div>
-                        <div class="mb-3 inline-flex rounded-full bg-green-100 p-3">
-                            <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900">Reservas</h3>
-                        <p class="mt-1 text-sm text-gray-500">Consulta y gestiona las reservas activas y el historial de clientes.</p>
-                    </div>
-                    <div class="mt-4">
-                        <a href="{{ route('admin.reservas.index') }}"
-                           class="inline-flex w-full items-center justify-center rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2">
-                            Ver reservas
-                        </a>
-                    </div>
-                </div>
-
-                {{-- Usuarios (módulo pendiente) --}}
-                <div class="flex flex-col justify-between rounded-lg bg-white p-6 shadow">
-                    <div>
-                        <div class="mb-3 inline-flex rounded-full bg-purple-100 p-3">
-                            <svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
-                            </svg>
-                        </div>
-                        <h3 class="text-lg font-semibold text-gray-900">Usuarios</h3>
-                        <p class="mt-1 text-sm text-gray-500">Administra los usuarios registrados y sus roles en el sistema.</p>
-                    </div>
-                    <div class="mt-4">
-                        <a href="{{ route('admin.habitaciones.index') }}"
-                           class="inline-flex w-full items-center justify-center rounded-md bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2">
-                            Ver usuarios
-                        </a>
-                    </div>
-                </div>
-
-            </div>
+            @endforeach
         </div>
     </div>
 </x-app-layout>

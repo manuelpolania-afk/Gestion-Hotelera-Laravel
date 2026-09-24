@@ -8,19 +8,19 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('detalle_reservas', function (Blueprint $table) {
+        Schema::create('notificaciones', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('reserva_id')->constrained('reservas')->cascadeOnDelete();
-            $table->foreignId('user_id')->constrained('users')->restrictOnDelete();
-            $table->date('fecha_ingreso');
-            $table->date('fecha_salida');
-            $table->unsignedInteger('cantidad_personas');
+            $table->string('mensaje');
+            $table->boolean('leida')->default(false);
+            $table->timestamp('fecha')->useCurrent();
             $table->timestamps();
         });
     }
 
     public function down(): void
     {
-        Schema::dropIfExists('detalle_reservas');
+        Schema::dropIfExists('notificaciones');
     }
 };

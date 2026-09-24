@@ -1,102 +1,83 @@
-<x-app-layout>
+<x-app-layout title="Reservas">
     <x-slot name="header">
-        <h2 class="text-xl font-semibold leading-tight text-gray-800">
-            Reservas
-        </h2>
+        <div>
+            <h2 class="page-title">Reservas</h2>
+            <p class="page-subtitle">Gestiona el estado de las reservas del hotel.</p>
+        </div>
     </x-slot>
 
-    <div class="py-8">
-        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div class="container-page py-8">
 
-            @if (session('success'))
-                <div class="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-700">
-                    {{ session('success') }}
-                </div>
-            @endif
+        @if (session('success'))
+            <div class="alert alert-success mb-4">{{ session('success') }}</div>
+        @endif
 
-            @if ($reservas->isEmpty())
-                <p class="text-gray-500">No hay reservas registradas todavía.</p>
-            @else
-                <div class="overflow-hidden rounded-lg shadow">
-                    <table class="min-w-full divide-y divide-gray-200 bg-white">
-                        <thead class="bg-gray-50">
+        @if ($reservas->isEmpty())
+            <div class="empty-state">No hay reservas registradas todavía.</div>
+        @else
+            <div class="table-card overflow-x-auto">
+                <table class="table-base">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cliente</th>
+                            <th>Habitación</th>
+                            <th>Ingreso</th>
+                            <th>Salida</th>
+                            <th>Personas</th>
+                            <th>Subtotal</th>
+                            <th>Pago</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($reservas as $reserva)
                             <tr>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">#</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Cliente</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Habitación</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Ingreso</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Salida</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Personas</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Subtotal</th>
-                                <th class="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-gray-500">Estado</th>
+                                <td class="text-brand-400">#{{ $reserva->id }}</td>
+                                <td>
+                                    <span class="font-medium text-brand-900">{{ $reserva->detalle?->user?->name ?? '—' }}</span>
+                                    <span class="block text-xs text-brand-400">{{ $reserva->detalle?->user?->documento ?? '' }}</span>
+                                </td>
+                                <td class="font-medium text-brand-900">{{ $reserva->habitacion->nombre_habitacion }}</td>
+                                <td>{{ $reserva->detalle?->fecha_ingreso?->format('d/m/Y') ?? '—' }}</td>
+                                <td>{{ $reserva->detalle?->fecha_salida?->format('d/m/Y') ?? '—' }}</td>
+                                <td>{{ $reserva->detalle?->cantidad_personas ?? '—' }}</td>
+                                <td class="font-medium text-brand-800">${{ number_format($reserva->sub_total, 0, ',', '.') }}</td>
+                                <td>
+                                    @php $ultimoPago = $reserva->pagos->sortByDesc('id')->first(); @endphp
+                                    @if ($ultimoPago)
+                                        @php
+                                            $badgePago = match($ultimoPago->estado_pago) {
+                                                'Aprobado' => 'badge-green',
+                                                'Rechazado' => 'badge-red',
+                                                default => 'badge-yellow',
+                                            };
+                                        @endphp
+                                        <span class="badge {{ $badgePago }}">{{ $ultimoPago->estado_pago }}</span>
+                                        <span class="block text-xs text-brand-400">{{ $ultimoPago->referencia }}</span>
+                                    @else
+                                        <span class="text-brand-300">Sin pago</span>
+                                    @endif
+                                </td>
+                                <td>
+                                    <form method="POST" action="{{ route('admin.reservas.cambiarEstado', $reserva) }}">
+                                        @csrf
+                                        @method('PATCH')
+                                        <select name="estado_reserva" onchange="this.form.submit()"
+                                                class="form-select w-40 py-1.5 text-xs">
+                                            @foreach (['Pendiente', 'Confirmada', 'Cancelada', 'Finalizada'] as $estado)
+                                                <option value="{{ $estado }}" {{ $reserva->estado_reserva === $estado ? 'selected' : '' }}>
+                                                    {{ $estado }}
+                                                </option>
+                                            @endforeach
+                                        </select>
+                                    </form>
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-200">
-                            @foreach ($reservas as $reserva)
-                                @php
-                                    $badgeClasses = match($reserva->estado_reserva) {
-                                        'Pendiente'   => 'bg-yellow-100 text-yellow-800',
-                                        'Confirmada'  => 'bg-green-100 text-green-800',
-                                        'Cancelada'   => 'bg-red-100 text-red-800',
-                                        'Finalizada'  => 'bg-gray-100 text-gray-600',
-                                        default       => 'bg-gray-100 text-gray-600',
-                                    };
-                                @endphp
-                                <tr>
-                                    <td class="px-4 py-3 text-sm text-gray-500">#{{ $reserva->id }}</td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-900">
-                                        {{ $reserva->detalle?->user?->name ?? '—' }}<br>
-                                        <span class="text-xs text-gray-400">{{ $reserva->detalle?->user?->documento ?? '' }}</span>
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                                        {{ $reserva->habitacion->nombre_habitacion }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        {{ $reserva->detalle?->fecha_ingreso?->format('d/m/Y') ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        {{ $reserva->detalle?->fecha_salida?->format('d/m/Y') ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        {{ $reserva->detalle?->cantidad_personas ?? '—' }}
-                                    </td>
-
-                                    <td class="px-4 py-3 text-sm text-gray-600">
-                                        ${{ number_format($reserva->sub_total, 2) }}
-                                    </td>
-
-                                    {{-- Select inline para cambiar estado --}}
-                                    <td class="px-4 py-3">
-                                        <form method="POST"
-                                              action="{{ route('admin.reservas.cambiarEstado', $reserva) }}">
-                                            @csrf
-                                            @method('PATCH')
-                                            <div class="flex items-center gap-2">
-                                                <select name="estado_reserva"
-                                                        onchange="this.form.submit()"
-                                                        class="rounded-md border-gray-300 py-1 pl-2 pr-7 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500 {{ $badgeClasses }}">
-                                                    @foreach (['Pendiente', 'Confirmada', 'Cancelada', 'Finalizada'] as $estado)
-                                                        <option value="{{ $estado }}"
-                                                            {{ $reserva->estado_reserva === $estado ? 'selected' : '' }}>
-                                                            {{ $estado }}
-                                                        </option>
-                                                    @endforeach
-                                                </select>
-                                            </div>
-                                        </form>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-
-        </div>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
     </div>
 </x-app-layout>

@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreReservaRequest;
 use App\Models\Habitacion;
+use App\Models\Notificacion;
 use App\Models\Reserva;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -57,12 +59,12 @@ class ReservaController extends Controller
         $subTotal = $dias * $personas * $habitacion->valor;
 
         // Crear reserva y detalle en transacción
-        DB::transaction(function () use ($habitacion, $fechaIngreso, $fechaSalida, $personas, $subTotal) {
+        $reserva = DB::transaction(function () use ($habitacion, $fechaIngreso, $fechaSalida, $personas, $subTotal) {
             $reserva = Reserva::create([
-                'habitacion_id' => $habitacion->id,
-                'fecha'         => now()->toDateString(),
+                'habitacion_id'  => $habitacion->id,
+                'fecha'          => now()->toDateString(),
                 'estado_reserva' => 'Pendiente',
-                'sub_total'     => $subTotal,
+                'sub_total'      => $subTotal,
             ]);
 
             $reserva->detalle()->create([
@@ -70,6 +72,21 @@ class ReservaController extends Controller
                 'fecha_ingreso'     => $fechaIngreso,
                 'fecha_salida'      => $fechaSalida,
                 'cantidad_personas' => $personas,
+            ]);
+
+            return $reserva;
+        });
+
+        // Notificar a todos los administradores
+        $cliente  = auth()->user();
+        $mensaje  = "Nueva reserva de {$cliente->name} para la habitación «{$habitacion->nombre_habitacion}».";
+
+        User::administradores()->get()->each(function ($admin) use ($reserva, $mensaje) {
+            Notificacion::create([
+                'user_id'    => $admin->id,
+                'reserva_id' => $reserva->id,
+                'mensaje'    => $mensaje,
+                'leida'      => false,
             ]);
         });
 
@@ -83,9 +100,9 @@ class ReservaController extends Controller
     public function misReservas(): View
     {
         Reserva::finalizarVencidas();
-        Habitacion::sincronizarEstadosHabitaciones();
+        Reserva::sincronizarEstadosHabitaciones();
 
-        $reservas = Reserva::with('habitacion', 'detalle')
+        $reservas = Reserva::with('habitacion', 'detalle', 'pagos')
             ->whereHas('detalle', fn ($q) => $q->where('user_id', auth()->id()))
             ->orderByDesc('id')
             ->get();
@@ -121,9 +138,9 @@ class ReservaController extends Controller
     public function index(): View
     {
         Reserva::finalizarVencidas();
-        Habitacion::sincronizarEstadosHabitaciones();
+        Reserva::sincronizarEstadosHabitaciones();
 
-        $reservas = Reserva::with('habitacion', 'detalle.user')
+        $reservas = Reserva::with('habitacion', 'detalle.user', 'pagos')
             ->orderByDesc('id')
             ->get();
 

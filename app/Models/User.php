@@ -4,8 +4,10 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -47,8 +49,18 @@ class User extends Authenticatable
         return $this->belongsTo(Role::class);
     }
 
+    public function notificaciones(): HasMany
+    {
+        return $this->hasMany(Notificacion::class);
+    }
+
     public function isAdmin(): bool
     {
         return $this->role?->nombre === 'Administrador';
+    }
+
+    public function scopeAdministradores(Builder $query): Builder
+    {
+        return $query->whereHas('role', fn ($q) => $q->where('nombre', 'Administrador'));
     }
 }

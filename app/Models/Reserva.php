@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Facades\DB;
 
@@ -34,6 +35,16 @@ class Reserva extends Model
     public function detalle(): HasOne
     {
         return $this->hasOne(DetalleReserva::class);
+    }
+
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(Pago::class);
+    }
+
+    public function pagoAprobado(): HasOne
+    {
+        return $this->hasOne(Pago::class)->where('estado_pago', 'Aprobado')->latestOfMany();
     }
 
     // ── Scopes ────────────────────────────────────────────────

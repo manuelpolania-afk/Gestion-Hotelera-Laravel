@@ -25,4 +25,14 @@ class StoreHabitacionRequest extends FormRequest
             'valor'            => ['required', 'numeric', 'min:0'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'zona_id.required'           => 'Debe completar los datos',
+            'nombre_habitacion.required' => 'Debe completar los datos',
+            'capacidad.required'         => 'Debe completar los datos',
+            'valor.required'             => 'Debe completar los datos',
+        ];
+    }
 }

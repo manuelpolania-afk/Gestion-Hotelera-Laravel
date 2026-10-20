@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreHabitacionRequest;
 use App\Http\Requests\UpdateHabitacionRequest;
 use App\Models\Habitacion;
+use App\Models\Reserva;
 use App\Models\Zona;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
@@ -16,6 +17,9 @@ class HabitacionController extends Controller
      */
     public function index(): View
     {
+        Reserva::finalizarVencidas();
+        Reserva::sincronizarEstadosHabitaciones();
+
         $habitaciones = Habitacion::with('zona', 'imagenPrincipal')->get();
 
         return view('admin.habitaciones.index', compact('habitaciones'));
@@ -49,7 +53,10 @@ class HabitacionController extends Controller
      */
     public function show(Habitacion $habitacion): View
     {
-        $habitacion->load([
+        Reserva::finalizarVencidas();
+        Reserva::sincronizarEstadosHabitaciones();
+
+        $habitacion->refresh()->load([
             'zona',
             'imagenes' => fn ($q) => $q->orderByDesc('principal')->orderBy('fecha_subida'),
         ]);

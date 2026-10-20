@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Habitacion;
+use App\Models\Reserva;
 use App\Models\Zona;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -11,6 +12,9 @@ class HomeController extends Controller
 {
     public function index(Request $request): View
     {
+        Reserva::finalizarVencidas();
+        Reserva::sincronizarEstadosHabitaciones();
+
         $zonas = Zona::all();
 
         $query = Habitacion::with('zona', 'imagenPrincipal')

@@ -91,7 +91,7 @@ Tabla física: `imagenes_habitacion`. **No usa timestamps `created_at`/`updated_
 | `habitacion_id` | FK → `habitaciones.id` |
 | `fecha` | date — fecha de creación de la reserva |
 | `estado_reserva` | enum `Pendiente` / `Confirmada` / `Cancelada` / `Finalizada`, default `Pendiente` |
-| `sub_total` | decimal(10,2) — calculado como `días × personas × valor de la habitación` |
+| `sub_total` | decimal(10,2) — calculado como `días × valor de la habitación` |
 
 - Relaciones: `habitacion(): BelongsTo`, `detalle(): HasOne` → `DetalleReserva`, `pagos(): HasMany` → `Pago`, `pagoAprobado(): HasOne` (el último `Pago` con `estado_pago = 'Aprobado'`).
 - Scope `scopeActivas()` → excluye `Cancelada`.

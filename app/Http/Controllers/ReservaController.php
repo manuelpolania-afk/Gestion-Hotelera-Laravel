@@ -56,7 +56,7 @@ class ReservaController extends Controller
 
         // Calcular subtotal
         $dias     = (int) now()->parse($fechaIngreso)->diffInDays($fechaSalida);
-        $subTotal = $dias * $personas * $habitacion->valor;
+        $subTotal = $dias * $habitacion->valor;
 
         // Crear reserva y detalle en transacción
         $reserva = DB::transaction(function () use ($habitacion, $fechaIngreso, $fechaSalida, $personas, $subTotal) {

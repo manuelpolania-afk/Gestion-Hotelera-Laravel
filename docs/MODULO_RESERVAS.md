@@ -47,7 +47,7 @@ Después de pasar la validación de formulario, el controlador aplica tres regla
 
 Si todo pasa:
 
-1. Calcula `sub_total = días_entre_fechas × cantidad_personas × habitacion.valor`.
+1. Calcula `sub_total = días_entre_fechas × habitacion.valor`.
 2. Crea `Reserva` (`estado_reserva = 'Pendiente'`) y su `DetalleReserva` dentro de una única `DB::transaction`.
 3. Crea una `Notificacion` para **cada** usuario administrador (`User::administradores()`), con un mensaje tipo *"Nueva reserva de {cliente} para la habitación «{habitación}»."*.
 4. Redirige a `reservas.mias` con un mensaje de éxito: *"Reserva realizada correctamente. Está pendiente de confirmación."*

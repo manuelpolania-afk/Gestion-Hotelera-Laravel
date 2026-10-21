@@ -1,45 +1,45 @@
-# Pruebas automatizadas
+# Pruebas
 
-## Cómo correr la suite
+## Cómo correrlas
 
 ```bash
 composer test
-# equivalente a:
+# que es lo mismo que:
 php artisan config:clear
 php artisan test
 ```
 
-## Estado actual
+## Lo que hay ahora
 
-El proyecto usa PHPUnit `^12.5` sobre el runner de Laravel. Toda la suite existente corresponde al **scaffolding de autenticación de Laravel Breeze** — no hay tests del dominio propio del hotel.
+Uso PHPUnit `^12.5` con el runner de Laravel. Siendo sincero, todas las pruebas que hay ahorita son las que vienen con **Breeze** para el login y el registro. Todavía no tengo pruebas de la parte del hotel.
 
-| Archivo | Cubre |
+| Archivo | Qué prueba |
 |---|---|
-| `tests/Feature/Auth/AuthenticationTest.php` | Render de `/login`, login exitoso (redirige a `dashboard`), rechazo con password inválido, logout |
-| `tests/Feature/Auth/RegistrationTest.php` | Render y envío exitoso del formulario de registro |
-| `tests/Feature/Auth/EmailVerificationTest.php` | Pantalla y proceso de verificación de email |
-| `tests/Feature/Auth/PasswordConfirmationTest.php` | Pantalla/flujo de confirmación de contraseña |
-| `tests/Feature/Auth/PasswordResetTest.php` | Solicitud y reseteo de contraseña vía link |
-| `tests/Feature/Auth/PasswordUpdateTest.php` | Actualización de contraseña autenticado |
-| `tests/Feature/ProfileTest.php` | Ver/editar perfil, invalidación de `email_verified_at` al cambiar el email, eliminación de cuenta propia (con password correcto/incorrecto) |
-| `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php` | Tests de ejemplo del scaffolding de Laravel (no aportan cobertura real) |
+| `tests/Feature/Auth/AuthenticationTest.php` | que cargue `/login`, que el login funcione (redirige a `dashboard`), que rechace una contraseña mala y el logout |
+| `tests/Feature/Auth/RegistrationTest.php` | que cargue el registro y que se pueda registrar |
+| `tests/Feature/Auth/EmailVerificationTest.php` | la pantalla y el proceso de verificar el correo |
+| `tests/Feature/Auth/PasswordConfirmationTest.php` | la confirmación de contraseña |
+| `tests/Feature/Auth/PasswordResetTest.php` | pedir el link y cambiar la contraseña |
+| `tests/Feature/Auth/PasswordUpdateTest.php` | cambiar la contraseña estando logueado |
+| `tests/Feature/ProfileTest.php` | ver y editar el perfil, que se borre `email_verified_at` al cambiar el correo, y eliminar la cuenta (con contraseña buena y mala) |
+| `tests/Feature/ExampleTest.php`, `tests/Unit/ExampleTest.php` | los de ejemplo de Laravel, no prueban nada real |
 
-## Cobertura ausente (dominio del hotel)
+## Lo que me falta probar
 
-No hay ningún test automatizado para:
+No tengo pruebas automáticas de:
 
-- **Habitaciones y zonas**: CRUD, restricción de borrado de zonas con habitaciones, cambio de habitación a `Fuera de servicio` al "eliminarla", subida/gestión de imágenes.
-- **Reservas**: validación de capacidad, disponibilidad, solapamiento de fechas, cálculo de `sub_total`, cancelación, `finalizarVencidas()`, `sincronizarEstadosHabitaciones()`.
-- **Pagos simulados**: aprobación/rechazo (incluido el caso determinístico de tarjeta terminada en `0000`), creación de la referencia, cambio de estado de la reserva a `Confirmada`, autorización de propietario.
-- **Roles y middleware `admin`**: acceso denegado a no-administradores, redirección post-login según rol.
-- **Notificaciones**: creación al reservar, marcar como leídas (individual y masivo), autorización por usuario.
+- **Habitaciones y zonas**: el CRUD, que no deje borrar zonas con habitaciones, que al "eliminar" una habitación quede `Fuera de servicio`, y lo de las fotos.
+- **Reservas**: capacidad, disponibilidad, fechas cruzadas, el cálculo del `sub_total`, cancelar, `finalizarVencidas()` y `sincronizarEstadosHabitaciones()`.
+- **Pagos**: aprobado y rechazado (incluyendo la tarjeta que termina en `0000`), la referencia, que la reserva pase a `Confirmada` y que solo el dueño pueda pagar.
+- **Roles y middleware admin**: que un cliente no pueda entrar al panel y que el login mande a cada uno a su lugar.
+- **Notificaciones**: que se creen al reservar, marcarlas como leídas (una o todas) y que cada admin solo toque las suyas.
 
-## Sugerencia de próximos tests (si se quiere ampliar cobertura)
+## Las que haría primero
 
-Si el instructor pide evidencia de pruebas sobre el dominio, los candidatos de mayor valor por esfuerzo son:
+Si el profe pide pruebas del hotel, estas son las que más valen la pena por el tiempo que toman:
 
-1. `PagoControllerTest`: pago aprobado confirma la reserva; tarjeta `0000` siempre rechaza; usuario no dueño recibe `403`; reserva no `Pendiente` no permite pagar de nuevo.
-2. `ReservaControllerTest`: no se puede reservar una habitación no disponible; no se puede reservar con fechas solapadas; el cálculo de `sub_total` es correcto.
-3. `EnsureUserIsAdminTest`: un cliente recibe `403` al entrar a cualquier ruta `/admin/*`.
+1. `PagoControllerTest`: que un pago aprobado confirme la reserva, que la tarjeta `0000` siempre se rechace, que otro usuario reciba `403` y que no se pueda pagar una reserva que ya no está `Pendiente`.
+2. `ReservaControllerTest`: que no deje reservar una habitación que no está disponible, que no deje reservar fechas que se cruzan y que el `sub_total` dé bien.
+3. `EnsureUserIsAdminTest`: que un cliente reciba `403` en cualquier ruta de `/admin/*`.
 
-Estos se pueden generar con `php artisan make:test PagoControllerTest` (usan `RefreshDatabase` + factories de `User`, `Habitacion`, `Reserva`).
+Se crean con `php artisan make:test PagoControllerTest` y usarían `RefreshDatabase` con factories de `User`, `Habitacion` y `Reserva`.

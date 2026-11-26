@@ -1,50 +1,50 @@
 # Módulo de pagos (simulado)
 
-> ⚠️ **Este módulo no cobra dinero real.** No se integra con ninguna pasarela de pago (Stripe, PayU, Wompi, PSE real, etc.). Es una **simulación** construida para cumplir el requisito académico de "que haya pagos en el sistema" sin manejar datos financieros reales ni credenciales de ninguna entidad bancaria. Ningún número de tarjeta ingresado se valida contra un banco, ni se almacena en texto plano (solo se guardan los últimos 4 dígitos).
+Lo primero: **este módulo no cobra plata de verdad.** No está conectado a ninguna pasarela (ni Stripe, ni PayU, ni Wompi, ni PSE real). Es una simulación que hice para cumplir con el requisito de que el sistema tuviera pagos, pero sin manejar datos financieros reales ni credenciales de ningún banco. Los números de tarjeta no se validan con ningún banco y tampoco se guardan completos, solo los últimos 4 dígitos.
 
-## Por qué existe como módulo aparte
+## Por qué lo hice como un módulo aparte
 
-En vez de marcar una reserva como "pagada" con un simple booleano, se modeló un módulo de `Pago` independiente (tabla `pagos`, modelo `Pago`) para que el proyecto se parezca a un sistema real de e-commerce/reservas: cada intento de pago queda registrado (aprobado o rechazado), con su propia referencia, método y fecha — igual que dejaría un log una pasarela real, pero sin conectarse a ninguna.
+Lo más fácil hubiera sido ponerle a la reserva un campo tipo "pagada sí/no", pero preferí hacer una tabla `pagos` con su modelo `Pago` para que se pareciera más a un sistema real. Así cada intento de pago queda guardado (aprobado o rechazado) con su referencia, el método y la fecha, como lo haría una pasarela de verdad, pero sin conectarme a ninguna.
 
-## Modelo `Pago`
+## Modelo Pago
 
-| Campo | Tipo | Descripción |
+| Campo | Tipo | Qué guarda |
 |---|---|---|
-| `reserva_id` | FK → `reservas.id` | Reserva que se está pagando |
+| `reserva_id` | FK a `reservas.id` | la reserva que se está pagando |
 | `metodo_pago` | string | `Tarjeta`, `PSE` o `Efectivo` |
-| `estado_pago` | string | `Pendiente` (default, no se usa en la práctica porque el resultado se decide al instante), `Aprobado`, `Rechazado` |
-| `monto` | decimal(10,2) | Copia de `reserva.sub_total` en el momento del pago |
-| `referencia` | string, único | Código simulado tipo `PAY-XXXXXXXX` (8 caracteres alfanuméricos aleatorios) |
-| `tarjeta_enmascarada` | string, nullable | Solo si el método es `Tarjeta`: `**** **** **** 1234` |
-| `fecha_pago` | timestamp, nullable | Se llena únicamente si el pago fue aprobado |
+| `estado_pago` | string | `Pendiente` (es el default, pero en la práctica no se queda así porque el resultado se decide de una), `Aprobado` o `Rechazado` |
+| `monto` | decimal(10,2) | copio el `sub_total` de la reserva en ese momento |
+| `referencia` | string, único | un código tipo `PAY-XXXXXXXX` (8 letras/números al azar) |
+| `tarjeta_enmascarada` | string, puede ser null | solo si se pagó con tarjeta: `**** **** **** 1234` |
+| `fecha_pago` | timestamp, puede ser null | solo se llena si se aprobó |
 
-Una reserva puede acumular **varios** registros de `Pago` (uno por cada intento del cliente), lo que permite ver en el panel admin el historial completo: por ejemplo, un rechazo seguido de una aprobación.
+Una reserva puede tener **varios** pagos, uno por cada intento. Por eso en el panel de admin se puede ver, por ejemplo, que primero lo rechazaron y después sí pasó.
 
-## Flujo completo
+## Cómo funciona paso a paso
 
-### 1. El cliente inicia el pago
+### 1. El cliente entra a pagar
 
-Desde "Mis reservas" (`reservas.mias`), cualquier reserva en estado `Pendiente` muestra un enlace **Pagar** que va a `GET /reservas/{reserva}/pago` (`pagos.create`, `PagoController@create`).
+En "Mis reservas" (`reservas.mias`), las reservas que están `Pendiente` tienen un botón **Pagar** que lleva a `GET /reservas/{reserva}/pago` (`pagos.create`, `PagoController@create`).
 
-El controlador verifica:
-- Que el usuario autenticado sea el dueño de la reserva (`detalle.user_id === auth()->id()`), si no → `403`.
-- Que la reserva siga `Pendiente`; si ya fue pagada/cancelada, redirige a `reservas.mias` con un aviso.
+Ahí reviso dos cosas:
+- Que la reserva sea del usuario que está logueado (`detalle.user_id === auth()->id()`). Si no es suya, `403`.
+- Que la reserva siga `Pendiente`. Si ya se pagó o se canceló, lo devuelvo a `reservas.mias` con un aviso.
 
-Y muestra `resources/views/pagos/create.blade.php`: resumen de la reserva (habitación, fechas, total) + formulario de pago.
+Si todo está bien muestro `resources/views/pagos/create.blade.php`, con el resumen de la reserva (habitación, fechas, total) y el formulario.
 
-### 2. El formulario (`pagos/create.blade.php`)
+### 2. El formulario
 
-Selector de método de pago (Alpine.js controla qué campos se muestran):
+Hay un selector del método de pago y con Alpine.js muestro u oculto los campos según lo que se elija:
 
-| Método | Campos requeridos | Comportamiento |
+| Método | Qué pide | Qué pasa |
 |---|---|---|
-| **Tarjeta** | Titular, número de tarjeta, expiración (MM/AA), CVV | Se valida y se decide aprobado/rechazado (ver reglas abajo) |
-| **PSE** | Ninguno adicional | Se simula aprobado al instante |
-| **Efectivo** (en recepción) | Ninguno adicional | Se simula aprobado al instante |
+| **Tarjeta** | titular, número, vencimiento (MM/AA) y CVV | se valida y se decide si se aprueba o no (reglas más abajo) |
+| **PSE** | nada más | se aprueba de una (simulado) |
+| **Efectivo** (en recepción) | nada más | se aprueba de una (simulado) |
 
-El placeholder del número de tarjeta muestra el formato con espacios (`4111 1111 1111 1111`) a modo de guía visual; el servidor limpia automáticamente cualquier espacio/guión antes de validar, así que el usuario puede escribirlo con o sin separadores.
+En el campo de la tarjeta puse de ejemplo `4111 1111 1111 1111` con espacios. El servidor le quita los espacios y guiones antes de validar, entonces se puede escribir como sea.
 
-### 3. Validación del servidor — `PagoController@store`
+### 3. Validación en `PagoController@store`
 
 ```php
 $request->merge(['numero_tarjeta' => preg_replace('/\D/', '', (string) $request->input('numero_tarjeta'))]);
@@ -58,9 +58,9 @@ $data = $request->validate([
 ]);
 ```
 
-Solo se exigen los campos de tarjeta cuando `metodo_pago === 'Tarjeta'`. La fecha de expiración debe tener formato `MM/AA` y ser posterior a hoy (una tarjeta "vencida" simulada se rechaza en la validación, antes incluso de llegar a la lógica de aprobación).
+Los campos de tarjeta solo son obligatorios si el método es `Tarjeta`. La fecha de vencimiento tiene que ir en `MM/AA` y ser después de hoy, entonces una tarjeta vencida ni siquiera llega a la parte de aprobar, se cae en la validación.
 
-### 4. Simulación de aprobación — `simularAprobacion()`
+### 4. La simulación: `simularAprobacion()`
 
 ```php
 private function simularAprobacion(array $data): bool
@@ -72,36 +72,36 @@ private function simularAprobacion(array $data): bool
 }
 ```
 
-Reglas de la simulación:
+Las reglas que le puse:
 
-1. **Caso de prueba determinístico**: si el método es `Tarjeta` y el número termina en **`0000`**, el pago se **rechaza siempre**. Está documentado directamente en el formulario (`pagos/create.blade.php`) como pista para quien haga la demo: *"termina en 0000 para probar un rechazo"*.
-2. **Resto de los casos** (cualquier otra tarjeta, PSE o Efectivo): aprobación aleatoria con **90% de probabilidad** (`random_int(1, 100) <= 90`), para imitar que en la vida real un pago puede fallar por motivos ajenos (fondos, timeout del banco, etc.) sin necesidad de una razón explícita.
+1. **Para probar un rechazo**: si es con tarjeta y el número termina en **`0000`**, siempre se rechaza. Esto lo dejé escrito en el mismo formulario como pista para la demo: *"termina en 0000 para probar un rechazo"*.
+2. **Todo lo demás** (otra tarjeta, PSE o efectivo): se aprueba el **90% de las veces** (`random_int(1, 100) <= 90`). La idea es imitar que en la vida real un pago a veces falla por cosas como fondos o que el banco no responde.
 
-### 5. Resultado
+### 5. Qué pasa después
 
-En ambos casos se crea un registro `Pago` con `referencia = 'PAY-' . strtoupper(Str::random(8))`.
+En los dos casos se crea un `Pago` con `referencia = 'PAY-' . strtoupper(Str::random(8))`.
 
-- **Aprobado**: `estado_pago = 'Aprobado'`, `fecha_pago = now()`, la `Reserva` pasa a `estado_reserva = 'Confirmada'`. Redirige a `reservas.mias` con: *"Pago aprobado (simulado). Referencia PAY-XXXXXXXX. Tu reserva quedó Confirmada."*
-- **Rechazado**: `estado_pago = 'Rechazado'`, `fecha_pago = null`, la reserva **permanece `Pendiente`**. Vuelve al formulario con el error *"El pago fue rechazado (simulación). Verifica los datos e inténtalo de nuevo."* — el cliente puede reintentar cuantas veces quiera (cada intento crea un nuevo registro `Pago`).
+- **Si se aprueba**: `estado_pago = 'Aprobado'`, `fecha_pago = now()` y la reserva pasa a `Confirmada`. Lo mando a `reservas.mias` con el mensaje *"Pago aprobado (simulado). Referencia PAY-XXXXXXXX. Tu reserva quedó Confirmada."*
+- **Si se rechaza**: `estado_pago = 'Rechazado'`, `fecha_pago = null` y la reserva **sigue `Pendiente`**. Vuelve al formulario con *"El pago fue rechazado (simulación). Verifica los datos e inténtalo de nuevo."* Puede intentar las veces que quiera y cada intento queda como un `Pago` nuevo.
 
-Por seguridad, si el pago es rechazado, el número de tarjeta y el CVV **no** se repueblan en el formulario (`withInput($request->except(['numero_tarjeta', 'cvv']))`) — el usuario debe volver a escribirlos.
+Cuando se rechaza, el número de tarjeta y el CVV **no** se vuelven a llenar en el formulario (`withInput($request->except(['numero_tarjeta', 'cvv']))`), toca escribirlos otra vez. Lo hice por seguridad.
 
-## Visibilidad del estado del pago
+## Dónde se ve el estado del pago
 
-- **Cliente** (`reservas/mias.blade.php`): bajo el badge de estado de la reserva se muestra el último intento de pago, p. ej. *"Pago aprobado · PAY-A1B2C3D4"*.
-- **Administrador** (`admin/reservas/index.blade.php`): columna "Pago" con badge de color (`Aprobado` verde, `Rechazado` rojo, `Pendiente` amarillo) y la referencia del último intento.
+- **Cliente** (`reservas/mias.blade.php`): debajo del estado de la reserva sale el último intento, por ejemplo *"Pago aprobado · PAY-A1B2C3D4"*.
+- **Admin** (`admin/reservas/index.blade.php`): hay una columna "Pago" con un badge de color (verde `Aprobado`, rojo `Rechazado`, amarillo `Pendiente`) y la referencia del último intento.
 
-## Qué NO hace este módulo (a propósito)
+## Lo que este módulo no hace (y es a propósito)
 
-- No se conecta a ninguna pasarela de pago real ni API externa.
-- No valida el número de tarjeta con el algoritmo de Luhn ni contra un BIN real — cualquier número de 13 a 19 dígitos es "válido" salvo la regla de prueba (`0000`).
-- No guarda el número completo de tarjeta ni el CVV en base de datos (solo los últimos 4 dígitos del número).
-- No genera reembolsos ni afecta el estado del pago si la reserva se cancela después de pagarse.
+- No se conecta a ninguna pasarela ni API externa.
+- No valida la tarjeta con el algoritmo de Luhn ni con BIN reales. Cualquier número de 13 a 19 dígitos pasa, menos los que terminan en `0000`.
+- No guarda el número completo ni el CVV en la base de datos, solo los últimos 4 dígitos.
+- No hace reembolsos. Si se cancela una reserva que ya estaba pagada, el pago queda igual.
 
-## Cómo demostrarlo (checklist para la sustentación)
+## Cómo lo muestro en la sustentación
 
-1. Crear una reserva como cliente → queda `Pendiente`.
-2. Ir a "Mis reservas" → clic en **Pagar**.
-3. **Caso aprobado**: pagar con cualquier tarjeta que no termine en `0000` (ej. `4111 1111 1111 1111`) → la reserva pasa a `Confirmada` y aparece la referencia `PAY-...`.
-4. **Caso rechazado**: repetir el pago con una tarjeta terminada en `0000` → mensaje de rechazo, la reserva sigue `Pendiente`, y queda un segundo registro de `Pago` con `estado_pago = 'Rechazado'`.
-5. Entrar como administrador a `admin/reservas` y mostrar la columna "Pago" con el historial de ambos intentos.
+1. Hago una reserva como cliente, queda `Pendiente`.
+2. Voy a "Mis reservas" y le doy **Pagar**.
+3. **Aprobado**: pago con una tarjeta que no termine en `0000` (por ejemplo `4111 1111 1111 1111`). La reserva pasa a `Confirmada` y sale la referencia `PAY-...`.
+4. **Rechazado**: hago otra reserva y pago con una tarjeta que termine en `0000`. Sale el mensaje de rechazo, la reserva sigue `Pendiente` y queda guardado un `Pago` con `estado_pago = 'Rechazado'`. Si después pago bien, esa misma reserva queda con los dos intentos.
+5. Entro como admin a `admin/reservas` y muestro la columna "Pago" con el historial.

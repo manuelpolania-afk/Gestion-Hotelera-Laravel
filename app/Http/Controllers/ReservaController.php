@@ -4,9 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreReservaRequest;
 use App\Models\Habitacion;
-use App\Models\Notificacion;
 use App\Models\Reserva;
-use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,11 +17,11 @@ class ReservaController extends Controller
      */
     public function store(StoreReservaRequest $request): RedirectResponse
     {
-        $data          = $request->validated();
-        $habitacion    = Habitacion::findOrFail($data['habitacion_id']);
-        $fechaIngreso  = $data['fecha_ingreso'];
-        $fechaSalida   = $data['fecha_salida'];
-        $personas      = (int) $data['cantidad_personas'];
+        $data = $request->validated();
+        $habitacion = Habitacion::findOrFail($data['habitacion_id']);
+        $fechaIngreso = $data['fecha_ingreso'];
+        $fechaSalida = $data['fecha_salida'];
+        $personas = (int) $data['cantidad_personas'];
 
         // Verificar capacidad
         if ($personas > $habitacion->capacidad) {
@@ -40,13 +38,7 @@ class ReservaController extends Controller
         }
 
         // Verificar solapamiento de fechas con reservas activas
-        $solapamiento = Reserva::where('habitacion_id', $habitacion->id)
-            ->where('estado_reserva', '<>', 'Cancelada')
-            ->whereHas('detalle', fn ($q) => $q
-                ->where('fecha_ingreso', '<', $fechaSalida)
-                ->where('fecha_salida', '>', $fechaIngreso)
-            )
-            ->exists();
+        $solapamiento = Reserva::haySolapamiento($habitacion->id, $fechaIngreso, $fechaSalida);
 
         if ($solapamiento) {
             return back()->withErrors([
@@ -55,22 +47,22 @@ class ReservaController extends Controller
         }
 
         // Calcular subtotal
-        $dias     = (int) now()->parse($fechaIngreso)->diffInDays($fechaSalida);
-        $subTotal = $dias * $personas * $habitacion->valor;
+        $dias = (int) now()->parse($fechaIngreso)->diffInDays($fechaSalida);
+        $subTotal = $dias * $habitacion->valor;
 
         // Crear reserva y detalle en transacción
         $reserva = DB::transaction(function () use ($habitacion, $fechaIngreso, $fechaSalida, $personas, $subTotal) {
             $reserva = Reserva::create([
-                'habitacion_id'  => $habitacion->id,
-                'fecha'          => now()->toDateString(),
+                'habitacion_id' => $habitacion->id,
+                'fecha' => now()->toDateString(),
                 'estado_reserva' => 'Pendiente',
-                'sub_total'      => $subTotal,
+                'sub_total' => $subTotal,
             ]);
 
             $reserva->detalle()->create([
-                'user_id'           => auth()->id(),
-                'fecha_ingreso'     => $fechaIngreso,
-                'fecha_salida'      => $fechaSalida,
+                'user_id' => auth()->id(),
+                'fecha_ingreso' => $fechaIngreso,
+                'fecha_salida' => $fechaSalida,
                 'cantidad_personas' => $personas,
             ]);
 
@@ -78,20 +70,10 @@ class ReservaController extends Controller
         });
 
         // Notificar a todos los administradores
-        $cliente  = auth()->user();
-        $mensaje  = "Nueva reserva de {$cliente->name} para la habitación «{$habitacion->nombre_habitacion}».";
-
-        User::administradores()->get()->each(function ($admin) use ($reserva, $mensaje) {
-            Notificacion::create([
-                'user_id'    => $admin->id,
-                'reserva_id' => $reserva->id,
-                'mensaje'    => $mensaje,
-                'leida'      => false,
-            ]);
-        });
+        $reserva->notificarAdministradores(auth()->user());
 
         return redirect()->route('reservas.mias')
-                         ->with('success', 'Reserva realizada correctamente. Está pendiente de confirmación.');
+            ->with('success', 'Reserva realizada correctamente. Está pendiente de confirmación.');
     }
 
     /**
@@ -129,7 +111,7 @@ class ReservaController extends Controller
         $reserva->update(['estado_reserva' => 'Cancelada']);
 
         return redirect()->route('reservas.mias')
-                         ->with('success', 'Reserva cancelada correctamente.');
+            ->with('success', 'Reserva cancelada correctamente.');
     }
 
     /**
@@ -159,6 +141,6 @@ class ReservaController extends Controller
         $reserva->update(['estado_reserva' => $request->estado_reserva]);
 
         return redirect()->route('admin.reservas.index')
-                         ->with('success', 'Estado de reserva actualizado.');
+            ->with('success', 'Estado de reserva actualizado.');
     }
 }

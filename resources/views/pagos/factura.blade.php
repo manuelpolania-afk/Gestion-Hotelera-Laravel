@@ -66,17 +66,13 @@
                                     <td class="px-4 py-2 text-brand-600">Noches ({{ $reserva->detalle->fecha_ingreso->format('d/m/Y') }} &rarr; {{ $reserva->detalle->fecha_salida->format('d/m/Y') }})</td>
                                     <td class="px-4 py-2 text-right text-brand-900">&times; {{ $noches }}</td>
                                 </tr>
-                                <tr>
-                                    <td class="px-4 py-2 text-brand-600">Cantidad de personas</td>
-                                    <td class="px-4 py-2 text-right text-brand-900">&times; {{ $reserva->detalle->cantidad_personas }}</td>
-                                </tr>
                             </tbody>
                             <tfoot>
                                 <tr class="bg-brand-50/70">
                                     <td class="px-4 py-3 font-semibold text-brand-900">
                                         Total pagado
                                         <span class="block text-xs font-normal text-brand-400">
-                                            ${{ number_format($reserva->habitacion->valor, 0, ',', '.') }} &times; {{ $noches }} noches &times; {{ $reserva->detalle->cantidad_personas }} personas
+                                            ${{ number_format($reserva->habitacion->valor, 0, ',', '.') }} &times; {{ $noches }} noches
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-right font-display text-xl font-bold text-gold-600">

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -25,7 +26,15 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            // Por defecto, un cliente: la tabla users exige rol y documento.
+            'role_id' => fn () => Role::firstOrCreate(
+                ['nombre' => 'Cliente'],
+                ['descripcion' => 'Usuario que realiza reservas'],
+            )->id,
             'name' => fake()->name(),
+            'documento' => fake()->unique()->numerify('##########'),
+            'telefono' => fake()->numerify('300#######'),
+            'estado' => 'activo',
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

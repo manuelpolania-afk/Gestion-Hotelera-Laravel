@@ -1,0 +1,86 @@
+# Despliegue automático en Wasmer
+#
+# Cada push a "main" ejecuta las pruebas y, si pasan, publica una versión
+# nueva en https://hotel-laravel-manuel19.wasmer.app (web + API del APK).
+# También se puede lanzar a mano desde la pestaña "Actions" de GitHub.
+#
+# Requisito (una sola vez): en GitHub → Settings → Secrets and variables →
+# Actions → New repository secret, crear WASMER_TOKEN con un token de
+# https://wasmer.io/settings/access-tokens
+name: Desplegar en Wasmer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: wasmer-deploy
+  cancel-in-progress: false
+
+jobs:
+  pruebas:
+    name: Pruebas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_sqlite, sqlite3, bcmath, intl
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Dependencias
+        run: |
+          composer install --no-interaction --prefer-dist
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Preparar .env de pruebas
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      - name: Ejecutar pruebas
+        run: php artisan test --compact
+
+  desplegar:
+    name: Desplegar
+    needs: pruebas
+    runs-on: ubuntu-latest
+    environment:
+      name: produccion
+      url: https://hotel-laravel-manuel19.wasmer.app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Instalar Wasmer CLI
+        run: |
+          curl https://get.wasmer.io -sSfL | sh -s "v7.5.0"
+          echo "$HOME/.wasmer/bin" >> "$GITHUB_PATH"
+
+      - name: Desplegar
+        env:
+          WASMER_TOKEN: ${{ secrets.WASMER_TOKEN }}
+        run: |
+          if [ -z "$WASMER_TOKEN" ]; then
+            echo "::error::Falta el secreto WASMER_TOKEN en Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          bash scripts/deploy-wasmer.sh

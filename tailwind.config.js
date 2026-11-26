@@ -12,10 +12,11 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
-                display: ['Poppins', 'Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['Switzer', ...defaultTheme.fontFamily.sans],
+                display: ['Switzer', ...defaultTheme.fontFamily.sans],
             },
             colors: {
+                paper: '#f2f2ef',
                 brand: {
                     50: '#f4f6fb',
                     100: '#e7ecf6',

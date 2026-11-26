@@ -20,12 +20,15 @@ class RegistrationTest extends TestCase
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
+            'documento' => '1234567890',
+            'telefono' => '3001234567',
             'email' => 'test@example.com',
             'password' => 'password',
             'password_confirmation' => 'password',
         ]);
 
         $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
+        // HU-007: tras crear la cuenta se lleva al catálogo
+        $response->assertRedirect(route('home', absolute: false));
     }
 }

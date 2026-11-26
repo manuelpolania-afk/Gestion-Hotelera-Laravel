@@ -14,8 +14,8 @@
 
             {{-- Brand panel --}}
             <div class="relative hidden overflow-hidden bg-brand-900 p-12 text-white lg:flex lg:flex-col lg:justify-between">
-                <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold-400/20 blur-3xl"></div>
-                <div class="pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-brand-500/30 blur-3xl"></div>
+                <div class="animate-float-slow pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold-400/20 blur-3xl"></div>
+                <div class="animate-float-slow pointer-events-none absolute -bottom-32 -left-20 h-80 w-80 rounded-full bg-brand-500/30 blur-3xl" style="animation-delay: -7s"></div>
 
                 <a href="{{ route('home') }}" class="relative flex items-center gap-3">
                     <span class="grid h-10 w-10 place-items-center rounded-xl bg-gold-400 text-brand-900">
@@ -27,10 +27,10 @@
                 </a>
 
                 <div class="relative">
-                    <h1 class="font-display text-4xl font-extrabold leading-tight">
-                        Tu próxima estadía<br>empieza aquí.
+                    <h1 data-hero-item class="font-display text-4xl font-extrabold leading-tight">
+                        Tu próxima estadía<br><span class="text-gradient-gold">empieza aquí.</span>
                     </h1>
-                    <p class="mt-4 max-w-sm text-brand-200">
+                    <p data-hero-item class="mt-4 max-w-sm text-brand-200">
                         Consulta disponibilidad, reserva tu habitación favorita y gestiona tus reservas en un solo lugar.
                     </p>
                 </div>
@@ -48,7 +48,7 @@
                         <span class="font-display text-lg font-bold text-brand-900">{{ config('app.name', 'Hotel') }}</span>
                     </a>
 
-                    <div class="card card-pad sm:p-8">
+                    <div data-reveal data-reveal-delay="200" class="card card-pad sm:p-8">
                         {{ $slot }}
                     </div>
 

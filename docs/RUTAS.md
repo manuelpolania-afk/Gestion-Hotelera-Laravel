@@ -1,21 +1,21 @@
 # Rutas
 
-Todas las rutas viven en `routes/web.php` (dominio de la app) y `routes/auth.php` (scaffolding de Breeze, requerido al final de `web.php`).
+Las rutas del proyecto están en dos archivos: `routes/web.php`, que son las mías del hotel, y `routes/auth.php`, que viene de Breeze y lo incluyo al final de `web.php`.
 
-## Públicas (sin autenticación)
+## Públicas (no necesitan login)
 
 | Método | URI | Controlador@método | Nombre |
 |---|---|---|---|
 | GET | `/` | `HomeController@index` | `home` |
 | GET | `/habitaciones/{habitacion}` | `HabitacionController@show` | `habitaciones.show` |
 
-`HomeController@index` acepta un query param opcional `zona_id` para filtrar el catálogo por zona.
+En el home se puede mandar `?zona_id=` para filtrar el catálogo por zona.
 
-## Autenticadas (middleware `auth`)
+## Con login (middleware `auth`)
 
 | Método | URI | Controlador@método | Nombre |
 |---|---|---|---|
-| GET | `/dashboard` | Closure → `view('dashboard')` | `dashboard` (además requiere `verified`) |
+| GET | `/dashboard` | Closure que devuelve `view('dashboard')` | `dashboard` (también pide `verified`) |
 | GET | `/profile` | `ProfileController@edit` | `profile.edit` |
 | PATCH | `/profile` | `ProfileController@update` | `profile.update` |
 | DELETE | `/profile` | `ProfileController@destroy` | `profile.destroy` |
@@ -25,11 +25,11 @@ Todas las rutas viven en `routes/web.php` (dominio de la app) y `routes/auth.php
 | GET | `/reservas/{reserva}/pago` | `PagoController@create` | `pagos.create` |
 | POST | `/reservas/{reserva}/pago` | `PagoController@store` | `pagos.store` |
 
-Cualquier usuario autenticado (rol `Cliente` o `Administrador`) puede reservar, cancelar y pagar sus propias reservas. La autorización de "propietario" se valida dentro de cada controlador comparando `detalle.user_id` con `auth()->id()`.
+Cualquier usuario logueado (sea `Cliente` o `Administrador`) puede reservar, cancelar y pagar sus reservas. Que la reserva sea suya lo reviso dentro de cada controlador comparando `detalle.user_id` con `auth()->id()`.
 
-## Panel de administración (middleware `auth` + `admin`, prefijo `admin`, nombre `admin.*`)
+## Panel de admin (middleware `auth` + `admin`, prefijo `admin`, nombres `admin.*`)
 
-Requiere `EnsureUserIsAdmin` — ver [ROLES_Y_PERMISOS.md](ROLES_Y_PERMISOS.md).
+Usa `EnsureUserIsAdmin`, lo explico en [ROLES_Y_PERMISOS.md](ROLES_Y_PERMISOS.md).
 
 | Método | URI | Controlador@método | Nombre |
 |---|---|---|---|
@@ -56,27 +56,27 @@ Requiere `EnsureUserIsAdmin` — ver [ROLES_Y_PERMISOS.md](ROLES_Y_PERMISOS.md).
 | GET | `admin/notificaciones` | `NotificacionController@index` | `admin.notificaciones.index` |
 | PATCH | `admin/notificaciones/{notificacion}/leida` | `NotificacionController@marcarLeida` | `admin.notificaciones.marcarLeida` |
 
-Notas:
-- `Route::resource('habitaciones', ...)` excluye `show` (esa vista es pública, fuera del grupo admin) y usa el parámetro `{habitacion}` en singular gracias a `->parameters(['habitaciones' => 'habitacion'])`.
-- La ruta `admin/notificaciones/marcar-todas` está declarada **antes** que `admin/notificaciones/{notificacion}/leida` a propósito, para que Laravel no intente interpretar `marcar-todas` como un `{notificacion}` numérico.
-- El módulo de usuarios (`admin.usuarios.index`) es **solo lectura** por ahora: no hay crear/editar/eliminar usuarios desde el panel.
+Algunas cosas que hice a propósito:
+- En el `Route::resource('habitaciones', ...)` quité `show`, porque esa vista es pública y está afuera del grupo de admin. También le puse `->parameters(['habitaciones' => 'habitacion'])` para que el parámetro quede en singular (`{habitacion}`).
+- La ruta `admin/notificaciones/marcar-todas` la puse **antes** de `admin/notificaciones/{notificacion}/leida`, para que Laravel no confunda `marcar-todas` con el id de una notificación.
+- Lo de usuarios (`admin.usuarios.index`) por ahora es **solo para ver**, no se pueden crear, editar ni borrar usuarios desde el panel.
 
 ## Autenticación (`routes/auth.php`)
 
-### Invitados (middleware `guest`)
+### Sin sesión (middleware `guest`)
 
 | Método | URI | Controlador@método | Nombre |
 |---|---|---|---|
 | GET | `register` | `RegisteredUserController@create` | `register` |
-| POST | `register` | `RegisteredUserController@store` | — |
+| POST | `register` | `RegisteredUserController@store` | (sin nombre) |
 | GET | `login` | `AuthenticatedSessionController@create` | `login` |
-| POST | `login` | `AuthenticatedSessionController@store` | — |
+| POST | `login` | `AuthenticatedSessionController@store` | (sin nombre) |
 | GET | `forgot-password` | `PasswordResetLinkController@create` | `password.request` |
 | POST | `forgot-password` | `PasswordResetLinkController@store` | `password.email` |
 | GET | `reset-password/{token}` | `NewPasswordController@create` | `password.reset` |
 | POST | `reset-password` | `NewPasswordController@store` | `password.store` |
 
-### Autenticados (middleware `auth`)
+### Con sesión (middleware `auth`)
 
 | Método | URI | Controlador@método | Nombre |
 |---|---|---|---|
@@ -84,8 +84,8 @@ Notas:
 | GET | `verify-email/{id}/{hash}` | `VerifyEmailController` (firmada, `throttle:6,1`) | `verification.verify` |
 | POST | `email/verification-notification` | `EmailVerificationNotificationController@store` (`throttle:6,1`) | `verification.send` |
 | GET | `confirm-password` | `ConfirmablePasswordController@show` | `password.confirm` |
-| POST | `confirm-password` | `ConfirmablePasswordController@store` | — |
+| POST | `confirm-password` | `ConfirmablePasswordController@store` | (sin nombre) |
 | PUT | `password` | `PasswordController@update` | `password.update` |
-| POST | `logout` | `AuthenticatedSessionController@destroy` | `logout` |
+| POST | `logout` | `AuthenticatedSessionController@logout` | `logout` |
 
-`AuthenticatedSessionController@store` redirige a `admin.index` si el usuario autenticado `isAdmin()`, o al `intended`/`home` en caso contrario. `RegisteredUserController@store` asigna automáticamente el rol `Cliente` (lo crea con `firstOrCreate` si no existe) a todo usuario nuevo.
+Después del login, `AuthenticatedSessionController@store` manda al admin a `admin.index` y a los demás a la página que querían ver (`intended`) o al `home`. Al registrarse, `RegisteredUserController@store` le pone el rol `Cliente` al usuario nuevo (si el rol no existe lo crea con `firstOrCreate`) y lo lleva al catálogo.

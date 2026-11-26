@@ -1,15 +1,17 @@
 # Módulo de reservas
 
-## Modelo de datos
+Este es el módulo principal del proyecto. Acá explico cómo se crea una reserva, por qué estados pasa y cómo se mantienen actualizadas las habitaciones.
 
-Una reserva se divide en dos tablas:
+## Cómo guardo una reserva
 
-- **`reservas`**: cabecera — habitación, fecha de creación, estado, subtotal.
-- **`detalle_reservas`** (1:1 con `reservas`): quién reservó (`user_id`), fechas de ingreso/salida y cantidad de personas.
+La reserva la partí en dos tablas:
 
-Esta separación permite, por ejemplo, calcular el subtotal y gestionar el estado a nivel de reserva sin mezclar los datos específicos del huésped.
+- **`reservas`**: lo general. La habitación, la fecha en que se hizo, el estado y el subtotal.
+- **`detalle_reservas`** (1 a 1 con `reservas`): quién reservó (`user_id`), las fechas de entrada y salida y cuántas personas van.
 
-## Ciclo de vida (`estado_reserva`)
+Lo separé así para poder manejar el estado y el subtotal en la reserva sin mezclarlo con los datos del huésped.
+
+## Estados de una reserva (`estado_reserva`)
 
 ```
 Pendiente ──(pago aprobado)──> Confirmada ──(fecha_salida pasó)──> Finalizada
@@ -17,20 +19,20 @@ Pendiente ──(pago aprobado)──> Confirmada ──(fecha_salida pasó)─�
     └──────────(cancelar)──────────┴──> Cancelada
 ```
 
-| Estado | Cómo se llega | Quién puede cambiarlo |
+| Estado | Cuándo pasa | Quién lo cambia |
 |---|---|---|
-| `Pendiente` | Estado inicial al crear la reserva | — |
-| `Confirmada` | El cliente completa el pago simulado con éxito (ver [MODULO_PAGOS.md](MODULO_PAGOS.md)), o un admin la cambia manualmente | Sistema (pago aprobado) o admin |
-| `Cancelada` | El cliente cancela una reserva `Pendiente` o `Confirmada`, o un admin la cambia manualmente | Cliente dueño o admin |
-| `Finalizada` | Automático: se ejecuta `Reserva::finalizarVencidas()` en cada carga de "Mis reservas" o del listado admin, y pasa a `Finalizada` toda reserva `Confirmada` cuya `fecha_salida` ya pasó | Sistema |
+| `Pendiente` | apenas se crea la reserva | nadie, es el inicial |
+| `Confirmada` | cuando el cliente paga y el pago simulado sale aprobado (ver [MODULO_PAGOS.md](MODULO_PAGOS.md)), o si un admin la cambia a mano | el sistema o el admin |
+| `Cancelada` | cuando el cliente cancela una reserva `Pendiente` o `Confirmada`, o si un admin la cambia | el cliente dueño o el admin |
+| `Finalizada` | sola: cada vez que se abre "Mis reservas" o el listado del admin corre `Reserva::finalizarVencidas()`, que pasa a `Finalizada` las `Confirmada` cuya `fecha_salida` ya pasó | el sistema |
 
-Un admin también puede forzar cualquier estado directamente desde `admin.reservas.cambiarEstado` (select en la tabla del panel), sin las validaciones de negocio que sí aplican al flujo normal del cliente.
+El admin además puede poner cualquier estado desde `admin.reservas.cambiarEstado` (el select de la tabla del panel). Ahí no aplico las validaciones que sí tiene el flujo del cliente.
 
-## Crear una reserva — `ReservaController@store`
+## Crear una reserva: `ReservaController@store`
 
-Ruta: `POST /reservas` (`reservas.store`), autenticada, disponible para cualquier usuario logueado.
+Ruta `POST /reservas` (`reservas.store`). Hay que estar logueado, cualquier usuario puede reservar.
 
-Validación (`StoreReservaRequest`):
+Primero valida el formulario con `StoreReservaRequest`:
 
 | Campo | Regla |
 |---|---|
@@ -39,50 +41,50 @@ Validación (`StoreReservaRequest`):
 | `fecha_salida` | `required`, `date`, `after:fecha_ingreso` |
 | `cantidad_personas` | `required`, `integer`, `min:1` |
 
-Después de pasar la validación de formulario, el controlador aplica tres reglas de negocio adicionales, en orden, devolviendo el primer error que aplique:
+Si eso pasa, en el controlador reviso tres cosas más, en este orden, y devuelvo el primer error que encuentre:
 
-1. **Capacidad**: `cantidad_personas` no puede superar `habitacion.capacidad`.
-2. **Disponibilidad**: la habitación debe tener `estado === 'Disponible'`.
-3. **Solapamiento de fechas**: no debe existir otra reserva **no cancelada** de la misma habitación cuyo rango de fechas se cruce con el solicitado (`fecha_ingreso < salida_nueva AND fecha_salida > ingreso_nuevo`).
+1. **Capacidad**: las personas no pueden ser más que la `capacidad` de la habitación.
+2. **Disponibilidad**: la habitación tiene que estar `Disponible`.
+3. **Fechas cruzadas**: no puede haber otra reserva **no cancelada** de la misma habitación que se cruce con esas fechas. La condición que uso es `fecha_ingreso < salida_nueva AND fecha_salida > ingreso_nuevo`.
 
-Si todo pasa:
+Si todo está bien:
 
-1. Calcula `sub_total = días_entre_fechas × cantidad_personas × habitacion.valor`.
-2. Crea `Reserva` (`estado_reserva = 'Pendiente'`) y su `DetalleReserva` dentro de una única `DB::transaction`.
-3. Crea una `Notificacion` para **cada** usuario administrador (`User::administradores()`), con un mensaje tipo *"Nueva reserva de {cliente} para la habitación «{habitación}»."*.
-4. Redirige a `reservas.mias` con un mensaje de éxito: *"Reserva realizada correctamente. Está pendiente de confirmación."*
+1. Calculo `sub_total = noches × valor de la habitación`.
+2. Creo la `Reserva` (en `Pendiente`) y su `DetalleReserva` dentro de un mismo `DB::transaction`, para que no quede una sin la otra.
+3. Le creo una `Notificacion` a **cada** admin (`User::administradores()`) con un mensaje tipo *"Nueva reserva de {cliente} para la habitación «{habitación}»."*
+4. Lo mando a `reservas.mias` con el mensaje *"Reserva realizada correctamente. Está pendiente de confirmación."*
 
-> La reserva queda `Pendiente` hasta que el cliente la paga (ver [MODULO_PAGOS.md](MODULO_PAGOS.md)) o un admin la confirma manualmente.
+La reserva se queda `Pendiente` hasta que el cliente la pague (ver [MODULO_PAGOS.md](MODULO_PAGOS.md)) o un admin la confirme.
 
-## "Mis reservas" — `ReservaController@misReservas`
+## Mis reservas: `ReservaController@misReservas`
 
-Ruta: `GET /mis-reservas` (`reservas.mias`).
+Ruta `GET /mis-reservas` (`reservas.mias`).
 
-1. Ejecuta `Reserva::finalizarVencidas()` y `Reserva::sincronizarEstadosHabitaciones()` (efecto secundario en cada carga de la página, no hay un cron/scheduler dedicado).
-2. Lista las reservas cuyo `detalle.user_id` es el del usuario autenticado, con `habitacion`, `detalle` y `pagos` precargados.
-3. Vista `resources/views/reservas/mias.blade.php`: tabla con habitación, fechas, personas, subtotal, badge de estado, estado del último pago (si existe) y acciones — botón **Pagar** (si `Pendiente`) y **Cancelar** (si `Pendiente` o `Confirmada`).
+1. Primero corro `Reserva::finalizarVencidas()` y `Reserva::sincronizarEstadosHabitaciones()`. Esto pasa cada vez que se carga la página, no tengo un cron ni un scheduler para eso.
+2. Traigo las reservas donde `detalle.user_id` es el usuario logueado, con `habitacion`, `detalle` y `pagos` cargados de una vez.
+3. La vista `resources/views/reservas/mias.blade.php` muestra una tabla con la habitación, fechas, personas, subtotal, el estado, el último pago (si hay) y los botones: **Pagar** si está `Pendiente` y **Cancelar** si está `Pendiente` o `Confirmada`.
 
-## Cancelar — `ReservaController@cancelar`
+## Cancelar: `ReservaController@cancelar`
 
-Ruta: `POST /reservas/{reserva}/cancelar` (`reservas.cancelar`).
+Ruta `POST /reservas/{reserva}/cancelar` (`reservas.cancelar`).
 
-- Solo el dueño de la reserva puede cancelarla (`detalle.user_id === auth()->id()`, si no → `403`).
-- Solo se puede cancelar si el estado actual es `Pendiente` o `Confirmada`.
-- No revierte pagos ya aprobados (es una simulación académica, no hay lógica de reembolso).
+- Solo la puede cancelar el dueño (`detalle.user_id === auth()->id()`), si no da `403`.
+- Solo se puede cancelar si está `Pendiente` o `Confirmada`.
+- Si ya estaba pagada, el pago no se devuelve. Como es una simulación no hice lógica de reembolsos.
 
-## Sincronización automática de habitaciones
+## Actualización automática de las habitaciones
 
-`Reserva::sincronizarEstadosHabitaciones()` (invocada junto con `finalizarVencidas()` en `misReservas()` e `index()`) mantiene el `estado` de `Habitacion` alineado con las reservas activas:
+`Reserva::sincronizarEstadosHabitaciones()` se llama junto con `finalizarVencidas()` en `misReservas()` y en `index()`, y lo que hace es que el estado de las habitaciones cuadre con las reservas:
 
-- Marca **`Ocupada`** toda habitación con una reserva `Confirmada` cuyo rango (`fecha_ingreso <= hoy < fecha_salida`) incluye el día de hoy — excepto si ya está en `Mantenimiento` o `Fuera de servicio` (esos estados manuales tienen prioridad).
-- Marca **`Disponible`** toda habitación que estaba `Ocupada` pero ya no tiene ninguna reserva vigente hoy.
+- Pone **`Ocupada`** las habitaciones que tienen una reserva `Confirmada` que incluye el día de hoy (`fecha_ingreso <= hoy < fecha_salida`). Si la habitación está en `Mantenimiento` o `Fuera de servicio` no la toco, porque esos estados los pone el admin a mano y tienen prioridad.
+- Pone **`Disponible`** las que estaban `Ocupada` pero ya no tienen reserva para hoy.
 
-Como esto corre en cada carga de página (no hay job/scheduler), el estado de las habitaciones puede tener un desfase de segundos/minutos respecto al reloj real, pero se autocorrige en la siguiente visita a `reservas.mias` o `admin.reservas.index`.
+Como esto se ejecuta cuando alguien carga la página y no con un job, puede que el estado quede un rato desfasado, pero se corrige solo la próxima vez que alguien entre a `reservas.mias` o `admin.reservas.index`.
 
-## Panel admin de reservas
+## Reservas en el panel de admin
 
-`ReservaController@index` (`admin.reservas.index`): mismo pipeline de sincronización, lista **todas** las reservas del sistema con el cliente, habitación y último pago. Cada fila tiene un `<select>` de estado que hace `PATCH admin.reservas.cambiarEstado` al cambiar (auto-submit), permitiendo al admin forzar cualquier transición de estado sin las validaciones del flujo de cliente.
+`ReservaController@index` (`admin.reservas.index`) hace la misma sincronización y muestra **todas** las reservas con el cliente, la habitación y el último pago. Cada fila tiene un `<select>` de estado que al cambiarlo se envía solo (`PATCH admin.reservas.cambiarEstado`), así el admin puede poner el estado que quiera sin las validaciones del cliente.
 
-## Notificaciones internas
+## Notificaciones
 
-Cada reserva nueva genera una `Notificacion` por administrador. El panel admin (`admin.notificaciones.index`) las lista ordenadas por fecha descendente, con acciones para marcar una (`admin.notificaciones.marcarLeida`) o todas (`admin.notificaciones.marcarTodas`) como leídas. Solo el propio administrador destinatario puede marcar sus notificaciones (`403` si `notificacion.user_id !== auth()->id()`).
+Por cada reserva nueva se crea una `Notificacion` para cada admin. En `admin.notificaciones.index` se listan de la más nueva a la más vieja, y se pueden marcar como leídas de a una (`admin.notificaciones.marcarLeida`) o todas de una vez (`admin.notificaciones.marcarTodas`). Cada admin solo puede marcar las suyas (si `notificacion.user_id !== auth()->id()` da `403`).

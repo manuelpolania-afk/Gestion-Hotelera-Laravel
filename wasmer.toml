@@ -1,0 +1,22 @@
+# Paquete que se publica en Wasmer (manuel19/hotel-laravel).
+# La versión la pone scripts/deploy-wasmer.sh en cada despliegue (0.2.AAAAMMDDHHMM);
+# no hace falta cambiarla a mano.
+[package]
+name = "manuel19/hotel-laravel"
+version = "0.2.0"
+entrypoint = "run"
+
+[dependencies]
+"php/php" = "=8.3.4"
+
+[fs]
+"/app" = "./"
+
+[[command]]
+name = "run"
+module = "php/php:php"
+runner = "https://webc.org/runner/wasi"
+
+[command.annotations.wasi]
+atom = "php/php:php"
+main-args = ["-t", "/app/public", "-S", "localhost:8080"]

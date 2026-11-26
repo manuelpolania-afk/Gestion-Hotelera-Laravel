@@ -26,6 +26,13 @@ class HomeController extends Controller
 
         $habitaciones = $query->get();
 
-        return view('home.index', compact('zonas', 'habitaciones'));
+        // Fachada de la portada: todas las zonas con todas sus habitaciones,
+        // para dibujar qué ventanas están libres y cuáles no.
+        $fachada = Zona::with(['habitaciones' => fn ($habitacionesQuery) => $habitacionesQuery->orderBy('nombre_habitacion')])
+            ->get();
+
+        $precioDesde = Habitacion::where('estado', 'Disponible')->min('valor');
+
+        return view('home.index', compact('zonas', 'habitaciones', 'fachada', 'precioDesde'));
     }
 }

@@ -1,172 +1,304 @@
+@php
+    $zonaActiva = request('zona_id');
+    $libres = $fachada->flatMap(fn ($zona) => $zona->habitaciones->where('estado', 'Disponible')->map(fn ($habitacion) => [$habitacion, $zona]));
+    $libresVisibles = $zonaActiva ? $libres->filter(fn ($par) => $par[1]->id == $zonaActiva) : $libres;
+    $totalHabitaciones = $fachada->sum(fn ($zona) => $zona->habitaciones->count());
+    $precio = fn ($valor) => '$' . number_format($valor, 0, ',', '.');
+
+    // Medidas de la fachada dibujada (un piso por zona, una ventana por habitación)
+    $pisos = $fachada->reverse()->values();
+    $alturaPiso = 120;
+    $techo = 130;
+    $base = 130;
+    $altoFachada = $techo + $pisos->count() * $alturaPiso + $base;
+@endphp
+
 <x-site-layout title="Habitaciones disponibles">
 
-    {{-- Hero --}}
-    <section class="bg-brand-900 text-white">
-        <div class="container-page relative overflow-hidden py-14 sm:py-20">
-            <div class="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-gold-400/20 blur-3xl"></div>
-            <div class="relative max-w-2xl">
-                <span class="badge badge-outline-green border-white/20 bg-white/10 text-gold-300">
-                    Reserva en línea
-                </span>
-                <h1 class="mt-4 font-display text-4xl font-extrabold leading-tight sm:text-5xl">
-                    Nuestras Habitaciones
-                </h1>
-                <p class="mt-4 text-lg text-brand-200">
-                    Selecciona tu espacio preferido y consulta su disponibilidad.
-                </p>
+    {{-- Primera pantalla: la frase con la franja de fotografía --}}
+    <section class="wrap flex min-h-[calc(100svh-72px)] flex-col justify-center pb-10 pt-6">
+        <h1 class="hero-line" data-stagger>
+            <span>Siga</span>
+            <span class="hero-strip" data-shutter>
+                <img src="{{ asset('images/ambiente/balcon.jpg') }}"
+                     alt="Mesa con un florero junto a la baranda de un balcón, frente a los árboles"
+                     width="2400" height="1000" fetchpriority="high">
+            </span>
+            <span>adelante</span>
+        </h1>
+
+        <div data-stagger class="mt-14 flex flex-col items-start gap-8 sm:mt-20 sm:flex-row sm:items-end sm:justify-between">
+            <p class="step-lead max-w-[30ch] text-brand-950">
+                {{ config('app.name') }}: habitaciones desde
+                <strong class="font-medium">{{ $precioDesde ? $precio($precioDesde) : '—' }}</strong> la noche,
+                con reserva y pago en línea.
+            </p>
+            <a href="#habitaciones" class="btn btn-primary btn-press min-h-[52px] px-7 text-base">
+                Ver habitaciones libres
+                <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 3a1 1 0 0 1 1 1v9.59l3.3-3.3a1 1 0 1 1 1.4 1.42l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.42L9 13.6V4a1 1 0 0 1 1-1Z"/></svg>
+            </a>
+        </div>
+    </section>
+
+    {{-- Habitaciones: la casa dibujada y la lista --}}
+    <section id="habitaciones" class="wrap scroll-mt-24 py-24 sm:py-36" data-room-finder>
+        <h2 data-stagger class="step-head max-w-[16ch] sm:pl-[3vw]">
+            <span data-free-count>{{ $libresVisibles->count() }}</span>
+            <span data-free-word>{{ $libresVisibles->count() === 1 ? 'habitación libre' : 'habitaciones libres' }}</span>
+            para reservar
+        </h2>
+
+        <div class="mt-16 grid gap-14 lg:mt-24 lg:grid-cols-12 lg:gap-8">
+
+            {{-- La fachada: cada ventana dorada es una habitación libre --}}
+            <div class="lg:col-span-4" data-stagger>
+                <figure class="rounded-[14px] bg-brand-100 p-4 sm:p-8">
+                    <svg viewBox="0 0 640 {{ $altoFachada }}" class="h-auto w-full" role="img"
+                         aria-label="Fachada de la casa: cada piso es una zona y cada ventana una habitación. Las ventanas doradas están libres.">
+                        {{-- Techo --}}
+                        <polygon points="40,{{ $techo }} 320,16 600,{{ $techo }}" fill="#0e1524"/>
+                        <rect x="292" y="70" width="56" height="34" rx="4" fill="#f5b301"/>
+
+                        {{-- Cuerpo --}}
+                        <rect x="72" y="{{ $techo }}" width="496" height="{{ $pisos->count() * $alturaPiso + $base }}" fill="#1f2f49"/>
+
+                        @foreach ($pisos as $i => $zona)
+                            @php
+                                $y = $techo + $i * $alturaPiso;
+                                $cuartos = $zona->habitaciones;
+                                $paso = $cuartos->count() > 0 ? min(104, 300 / $cuartos->count()) : 0;
+                                $ancho = min(72, $paso - 16);
+                            @endphp
+                            <g class="facade-floor {{ $zonaActiva && $zonaActiva != $zona->id ? 'is-dimmed' : '' }}" data-floor="{{ $zona->id }}">
+                                <rect x="72" y="{{ $y }}" width="496" height="{{ $alturaPiso }}" fill="{{ $i % 2 ? '#1f2f49' : '#273c60' }}"/>
+                                <a href="{{ route('home', ['zona_id' => $zona->id]) }}#habitaciones" data-zone-link="{{ $zona->id }}">
+                                    <text x="100" y="{{ $y + 66 }}" class="facade-floor-label" fill="#e7ecf6" font-size="22" font-family="Switzer, sans-serif" letter-spacing="-0.5">{{ $zona->codigo_zona }}</text>
+                                </a>
+                                @foreach ($cuartos as $j => $cuarto)
+                                    @php $libre = $cuarto->estado === 'Disponible'; @endphp
+                                    <rect x="{{ 250 + $j * $paso }}" y="{{ $y + 20 }}" width="{{ $ancho }}" height="80" rx="6"
+                                          class="facade-window {{ $libre ? 'is-free' : 'is-taken' }}"
+                                          tabindex="0" role="button"
+                                          data-room="{{ $cuarto->id }}"
+                                          data-room-label="{{ $cuarto->nombre_habitacion }} · {{ $zona->codigo_zona }} · {{ $cuarto->capacidad }} {{ $cuarto->capacidad == 1 ? 'persona' : 'personas' }} · {{ $libre ? $precio($cuarto->valor).' la noche' : $cuarto->estado }}"
+                                          data-room-url="{{ $libre ? route('habitaciones.show', $cuarto) : '' }}">
+                                        <title>{{ $cuarto->nombre_habitacion }} — {{ $libre ? 'libre' : $cuarto->estado }}</title>
+                                    </rect>
+                                @endforeach
+                            </g>
+                        @endforeach
+
+                        {{-- Planta baja: recepción --}}
+                        @php $yBase = $techo + $pisos->count() * $alturaPiso; @endphp
+                        <rect x="72" y="{{ $yBase }}" width="496" height="{{ $base }}" fill="#182135"/>
+                        <rect x="272" y="{{ $yBase + 30 }}" width="96" height="100" rx="48" ry="48" fill="#f5b301"/>
+                        <rect x="272" y="{{ $yBase + 80 }}" width="96" height="50" fill="#f5b301"/>
+                        <text x="100" y="{{ $yBase + 74 }}" fill="#9db3d3" font-size="20" font-family="Switzer, sans-serif">Recepción</text>
+                        <rect x="0" y="{{ $altoFachada - 6 }}" width="640" height="6" fill="#0e1524"/>
+                    </svg>
+
+                    <figcaption class="mt-5 min-h-[3.2em] text-base text-brand-800" data-facade-caption aria-live="polite">
+                        Toque una ventana dorada para ver la habitación, o un piso para filtrar por zona.
+                    </figcaption>
+                </figure>
+            </div>
+
+            {{-- La lista --}}
+            <div class="lg:col-span-8 lg:pl-12" data-stagger>
+                <nav class="flex flex-wrap gap-2" aria-label="Filtrar por zona">
+                    <a href="{{ route('home') }}#habitaciones" data-zone-link=""
+                       class="zone-chip {{ ! $zonaActiva ? 'is-active' : '' }}">Todas</a>
+                    @foreach ($zonas as $zona)
+                        <a href="{{ route('home', ['zona_id' => $zona->id]) }}#habitaciones" data-zone-link="{{ $zona->id }}"
+                           class="zone-chip {{ $zonaActiva == $zona->id ? 'is-active' : '' }}">{{ $zona->codigo_zona }}</a>
+                    @endforeach
+                </nav>
+
+                <div class="mt-10 sm:mt-14" data-room-list>
+                    @foreach ($libres as [$habitacion, $zona])
+                        <a href="{{ route('habitaciones.show', $habitacion) }}"
+                           class="room-row {{ $zonaActiva && $zonaActiva != $zona->id ? 'is-hidden' : '' }}"
+                           data-zona="{{ $zona->id }}" data-room-row="{{ $habitacion->id }}">
+                            <span class="text-[1.75rem] font-medium leading-none tracking-[-0.03em] text-brand-950">
+                                {{ $habitacion->nombre_habitacion }}
+                            </span>
+                            <span class="col-span-2 row-start-2 text-base text-brand-700 sm:col-span-1 sm:row-start-auto">
+                                {{ $zona->descripcion ?: $zona->codigo_zona }}
+                                @if ($habitacion->descripcion)
+                                    <span class="mt-1 block text-brand-600">{{ \Illuminate\Support\Str::limit($habitacion->descripcion, 70) }}</span>
+                                @endif
+                            </span>
+                            <span class="hidden text-base text-brand-700 sm:block">
+                                {{ $habitacion->capacidad }} {{ $habitacion->capacidad == 1 ? 'persona' : 'personas' }}
+                            </span>
+                            <span class="col-start-2 row-start-1 flex items-baseline gap-3 justify-self-end text-lg text-brand-950 sm:col-start-auto sm:row-start-auto">
+                                {{ $precio($habitacion->valor) }}
+                                <svg class="room-arrow h-4 w-4 text-gold-500" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 10a1 1 0 0 1 1-1h9.59l-3.3-3.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.42-1.4l3.3-3.3H4a1 1 0 0 1-1-1Z"/></svg>
+                            </span>
+                        </a>
+                    @endforeach
+
+                    <p data-room-empty class="{{ $libresVisibles->isEmpty() ? '' : 'hidden' }} rounded-[14px] bg-brand-100 px-6 py-10 text-lg text-brand-800">
+                        No hay habitaciones libres en esta zona por ahora.
+                        <a href="{{ route('home') }}#habitaciones" data-zone-link="" class="link-under">Ver todas las zonas</a>.
+                    </p>
+                </div>
+
+                <p class="step-small mt-6 text-brand-600">Precios por noche, en pesos colombianos.</p>
             </div>
         </div>
     </section>
 
-    <div class="container-page pb-16">
-        <div class="grid gap-6 lg:grid-cols-[16rem_1fr]">
+    {{-- La casa: foto ancha, bloque de color y datos --}}
+    <section class="wrap py-24 sm:py-36">
+        <div data-stagger>
+            <h2 class="step-head max-w-[22ch]">Pocas habitaciones, trato de casa</h2>
+            <p class="step-lead mt-6 max-w-[40ch] text-brand-900">
+                {{ config('app.name') }} tiene {{ $totalHabitaciones }} habitaciones repartidas en {{ $fachada->count() }} zonas.
+                Cada una muestra su capacidad y su precio, y usted la reserva y la paga sin llamar.
+            </p>
+        </div>
 
-            {{-- Sidebar de filtros --}}
-            <aside class="-mt-10 lg:sticky lg:top-24 lg:self-start">
-                <div class="card overflow-hidden">
-                    <div class="flex items-center gap-3 bg-brand-900 px-5 py-4 text-white">
-                        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gold-400 text-brand-900">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.568a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+        <div class="mt-16 grid gap-4 lg:mt-20 lg:grid-cols-12" data-stagger>
+            <figure class="relative overflow-hidden rounded-[14px] lg:col-span-8">
+                <img src="{{ asset('images/ambiente/comedor.jpg') }}" data-drift
+                     alt="Mesa de madera con sillas blancas junto a ventanales"
+                     width="1920" height="1200" loading="lazy"
+                     class="aspect-[4/3] w-full object-cover sm:aspect-[16/10]">
+                <figcaption class="bg-paper p-5 text-base text-brand-900 sm:absolute sm:right-0 sm:top-0 sm:w-[320px] sm:rounded-bl-[14px]">
+                    Las fotografías de ambiente acompañan mientras subimos las de cada habitación;
+                    en la página de cada una verá sus propias fotos en cuanto estén listas.
+                </figcaption>
+            </figure>
+
+            <div class="flex flex-col gap-8 lg:col-span-4">
+                <div class="flex aspect-[3/2] flex-col justify-between rounded-[14px] bg-gold-400 p-6 text-brand-950 lg:aspect-auto lg:h-[60%]">
+                    <p class="text-lg">Habitaciones desde</p>
+                    <p>
+                        <span class="block text-[clamp(2.75rem,5vw,4.5rem)] font-medium leading-none tracking-[-0.05em]" data-count-to="{{ (int) $precioDesde }}" data-count-prefix="$">
+                            {{ $precioDesde ? $precio($precioDesde) : '—' }}
                         </span>
-                        <div>
-                            <p class="font-display text-sm font-bold">Filtrar por Zona</p>
-                            <p class="text-xs text-brand-300">Ubicaciones del hotel</p>
-                        </div>
-                    </div>
-
-                    <nav class="p-3">
-                        <a href="{{ route('home') }}"
-                           class="flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm transition
-                           {{ ! request('zona_id')
-                               ? 'border-gold-300 bg-gold-50 font-semibold text-brand-900'
-                               : 'border-transparent text-brand-600 hover:bg-brand-50' }}">
-                            <span class="flex items-center gap-2">
-                                <span class="grid h-8 w-8 place-items-center rounded-lg {{ ! request('zona_id') ? 'bg-gold-400 text-brand-900' : 'bg-brand-100 text-brand-500' }}">
-                                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25A2.25 2.25 0 0 1 13.5 18v-2.25Z" /></svg>
-                                </span>
-                                <span>
-                                    <span class="block">Todas las Zonas</span>
-                                    <span class="block text-xs font-normal text-brand-400">Catálogo completo</span>
-                                </span>
-                            </span>
-                            @if (! request('zona_id'))
-                                <svg class="h-4 w-4 text-gold-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clip-rule="evenodd" /></svg>
-                            @endif
-                        </a>
-
-                        @foreach ($zonas as $zona)
-                            @php $active = request('zona_id') == $zona->id; @endphp
-                            <a href="{{ route('home', ['zona_id' => $zona->id]) }}"
-                               class="mt-1 flex items-center justify-between gap-2 rounded-xl border px-3 py-2.5 text-sm transition
-                               {{ $active
-                                   ? 'border-gold-300 bg-gold-50 font-semibold text-brand-900'
-                                   : 'border-transparent text-brand-600 hover:bg-brand-50' }}">
-                                <span class="flex min-w-0 items-center gap-2">
-                                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg {{ $active ? 'bg-gold-400 text-brand-900' : 'bg-brand-100 text-brand-500' }}">
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                    </span>
-                                    <span class="min-w-0">
-                                        <span class="block truncate">Zona {{ $zona->codigo_zona }}</span>
-                                        <span class="block truncate text-xs font-normal text-brand-400">{{ $zona->descripcion ?: 'Sector '.$zona->codigo_zona }}</span>
-                                    </span>
-                                </span>
-                                <svg class="h-4 w-4 shrink-0 opacity-50" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clip-rule="evenodd" /></svg>
-                            </a>
-                        @endforeach
-
-                        @if (request('zona_id'))
-                            <a href="{{ route('home') }}" class="mt-3 block text-center text-xs font-medium text-red-500 hover:underline">
-                                Limpiar filtro
-                            </a>
-                        @endif
-                    </nav>
-                </div>
-            </aside>
-
-            {{-- Grid de habitaciones --}}
-            <div class="pt-2 lg:pt-6">
-                <div class="mb-5 flex items-center justify-between">
-                    <p class="text-sm text-brand-400">
-                        {{ $habitaciones->count() }}
-                        {{ $habitaciones->count() === 1 ? 'habitación' : 'habitaciones' }}
-                        @if (request('zona_id')) en esta zona @endif
+                        <span class="mt-2 block text-lg">la noche</span>
                     </p>
-                    <span class="badge badge-blue">
-                        <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12 11.204 3.045c.44-.44 1.152-.44 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75" /></svg>
-                        {{ $habitaciones->count() }} disponibles
-                    </span>
                 </div>
 
-                @if ($habitaciones->isEmpty())
-                    <div class="empty-state">
-                        No hay habitaciones disponibles para esta zona.
+                <dl class="grid grid-cols-2 gap-x-6 gap-y-5 text-base">
+                    <div>
+                        <dt class="text-brand-600">Habitaciones</dt>
+                        <dd class="text-xl text-brand-950">{{ $totalHabitaciones }}</dd>
                     </div>
-                @else
-                    <div class="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-                        @foreach ($habitaciones as $habitacion)
-                            <article class="card card-hover flex flex-col overflow-hidden">
-
-                                <div class="relative">
-                                    <span class="absolute left-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-brand-900/80 px-2.5 py-1 text-xs font-semibold text-white backdrop-blur">
-                                        <svg class="h-3 w-3 text-gold-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M9.69 18.933.5 12.9a.75.75 0 0 1 .82-1.257l3.36 2.203V4.5a.75.75 0 0 1 1.5 0v7.379l1.5-.984V2.75a.75.75 0 0 1 1.5 0v7.895l1.5-.984V4a.75.75 0 0 1 1.5 0v4.611l1.5-.983V6.25a.75.75 0 0 1 1.5 0v6.191l1.72-1.128a.75.75 0 0 1 .82 1.257l-9.19 6.033a.75.75 0 0 1-.82 0Z" clip-rule="evenodd" /></svg>
-                                        {{ $habitacion->zona->codigo_zona }}
-                                    </span>
-                                    <span class="badge badge-outline-green absolute right-3 top-3 z-10 bg-white/90 uppercase tracking-wide backdrop-blur">
-                                        {{ $habitacion->estado }}
-                                    </span>
-
-                                    @if ($habitacion->imagenPrincipal)
-                                        <img src="{{ asset('storage/' . $habitacion->imagenPrincipal->ruta) }}"
-                                             alt="{{ $habitacion->nombre_habitacion }}"
-                                             class="h-52 w-full object-cover">
-                                    @else
-                                        <div class="flex h-52 w-full flex-col items-center justify-center gap-2 bg-brand-100 text-brand-300">
-                                            <svg class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg>
-                                            <span class="text-sm">Sin fotografía disponible</span>
-                                        </div>
-                                    @endif
-                                </div>
-
-                                <div class="flex flex-1 flex-col p-5">
-                                    <h3 class="font-display text-lg font-bold text-brand-900">
-                                        {{ $habitacion->nombre_habitacion }}
-                                    </h3>
-
-                                    @if ($habitacion->descripcion)
-                                        <p class="mt-1 line-clamp-2 text-sm text-brand-500">
-                                            {{ $habitacion->descripcion }}
-                                        </p>
-                                    @endif
-
-                                    <div class="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-brand-500">
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <svg class="h-4 w-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
-                                            Capacidad: <strong class="font-semibold text-brand-700">{{ $habitacion->capacidad }} pers.</strong>
-                                        </span>
-                                        <span class="inline-flex items-center gap-1.5">
-                                            <svg class="h-4 w-4 text-brand-400" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>
-                                            {{ $habitacion->zona->codigo_zona }}
-                                        </span>
-                                    </div>
-
-                                    <div class="mt-4 flex items-end gap-1">
-                                        <span class="font-display text-2xl font-extrabold text-brand-900">
-                                            ${{ number_format($habitacion->valor, 0, ',', '.') }}
-                                        </span>
-                                        <span class="pb-1 text-xs text-brand-400">/ noche</span>
-                                    </div>
-
-                                    <a href="{{ route('habitaciones.show', $habitacion) }}"
-                                       class="btn btn-primary btn-block mt-5">
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" /></svg>
-                                        Ver detalles y reservar
-                                    </a>
-                                </div>
-                            </article>
-                        @endforeach
+                    <div>
+                        <dt class="text-brand-600">Zonas</dt>
+                        <dd class="text-xl text-brand-950">{{ $fachada->count() }}</dd>
                     </div>
-                @endif
+                    <div>
+                        <dt class="text-brand-600">Recepción</dt>
+                        <dd class="text-xl text-brand-950">24 horas</dd>
+                    </div>
+                    <div>
+                        <dt class="text-brand-600">Pago</dt>
+                        <dd class="text-xl text-brand-950">Tarjeta, PSE o efectivo</dd>
+                    </div>
+                </dl>
             </div>
         </div>
-    </div>
+    </section>
+
+    {{-- Cómo se reserva: fila de momentos --}}
+    @php
+        $momentos = [
+            ['Elija su habitación', 'Mire la fachada o la lista, compare capacidad y precio, y abra la que le guste.', 'cama.jpg', 'Taza verde sobre una mesa de noche junto a sábanas blancas', 'h-24'],
+            ['Ponga las fechas', 'Indique cuántas personas llegan, el día de entrada y el de salida. Verá el total por noches.', 'mesa.jpg', 'Taza de café sobre una mesa larga de madera', 'h-32'],
+            ['Pague en línea', 'Con tarjeta, PSE o en efectivo. Al aprobarse el pago, su reserva pasa a confirmada.', 'ventana.jpg', 'Silla de madera junto a una ventana con cortinas al atardecer', 'h-16'],
+            ['Guarde su factura', 'La factura queda en Mis reservas, lista para consultar o imprimir cuando la necesite.', 'arboles.jpg', 'Ventana de muchos paneles que da a los árboles', 'h-28'],
+            ['Llegue a recepción', 'Le esperamos a cualquier hora. Si cambia de planes, cancele desde su cuenta.', 'cafe.jpg', 'Tazas y tetera sobre una mesa de madera con luz cálida', 'h-20'],
+        ];
+    @endphp
+    <section class="py-24 sm:py-36" data-moments-section>
+        <div class="wrap">
+            <div class="flex items-end justify-between gap-6" data-stagger>
+                <h2 class="text-[clamp(1.75rem,1.4rem+1.2vw,2.25rem)] leading-tight">Así se reserva</h2>
+                <div class="hidden gap-2 sm:flex">
+                    <button type="button" class="square-btn" data-moments-prev aria-label="Anterior">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M17 10a1 1 0 0 1-1 1H6.41l3.3 3.3a1 1 0 0 1-1.42 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.42 1.4L6.4 9H16a1 1 0 0 1 1 1Z"/></svg>
+                    </button>
+                    <button type="button" class="square-btn" data-moments-next aria-label="Siguiente">
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 10a1 1 0 0 1 1-1h9.59l-3.3-3.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 1 1-1.42-1.4l3.3-3.3H4a1 1 0 0 1-1-1Z"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="mt-5 h-1.5 w-full bg-brand-200">
+                <div class="h-full w-1/4 origin-left bg-brand-950" data-moments-progress></div>
+            </div>
+        </div>
+
+        <ol class="moments mt-10 px-4 sm:px-7" data-moments>
+            @foreach ($momentos as [$titulo, $texto, $foto, $alt, $espacio])
+                <li class="w-[72vw] shrink-0 sm:w-[280px]">
+                    <div data-stagger>
+                        <h3 class="text-lg font-semibold tracking-[-0.02em]">{{ $titulo }}</h3>
+                        <p class="mt-2 text-base text-brand-700">{{ $texto }}</p>
+                    </div>
+                    <div class="{{ $espacio }}"></div>
+                    <img src="{{ asset('images/ambiente/'.$foto) }}" alt="{{ $alt }}" width="1600" height="2000" loading="lazy"
+                         draggable="false" class="aspect-[4/5] w-full rounded-[14px] object-cover">
+                </li>
+            @endforeach
+            <li class="w-4 shrink-0 sm:w-7" aria-hidden="true"></li>
+        </ol>
+    </section>
+
+    {{-- Preguntas, junto a una foto alta --}}
+    <section class="overflow-hidden bg-brand-900 text-white">
+        <div class="wrap grid gap-16 pb-24 lg:grid-cols-12 lg:gap-8 lg:pb-32">
+            <div class="order-2 pt-0 lg:order-1 lg:col-span-5 lg:pt-32" data-stagger>
+                <h2 class="text-[clamp(1.875rem,1.5rem+1.2vw,2.75rem)] leading-tight">Antes de llegar</h2>
+                <ul class="mt-6 space-y-1 text-lg text-brand-100">
+                    <li>Recepción abierta las 24 horas</li>
+                    <li>Reservas en línea con su cuenta</li>
+                    <li><a href="mailto:reservas@hotel.test" class="underline decoration-gold-400 decoration-2 underline-offset-4 hover:text-gold-300">reservas@hotel.test</a></li>
+                </ul>
+
+                <div class="faq mt-10 space-y-5">
+                    <details>
+                        <summary>¿Necesito una cuenta para reservar?<span class="chev"></span></summary>
+                        <p class="pb-2 text-[1.0625rem] leading-relaxed text-brand-200">Sí. Con la cuenta guardamos sus reservas, sus pagos y sus facturas. Crearla toma un minuto.</p>
+                    </details>
+                    <details>
+                        <summary>¿Cómo puedo pagar?<span class="chev"></span></summary>
+                        <p class="pb-2 text-[1.0625rem] leading-relaxed text-brand-200">Con tarjeta, PSE o en efectivo. Cuando el pago se aprueba, la reserva queda confirmada y recibe su factura.</p>
+                    </details>
+                    <details>
+                        <summary>¿Cuánto cuesta en total?<span class="chev"></span></summary>
+                        <p class="pb-2 text-[1.0625rem] leading-relaxed text-brand-200">El precio de la habitación por cada noche de su estadía. Al poner las fechas verá el total antes de confirmar.</p>
+                    </details>
+                    <details>
+                        <summary>¿Puedo cancelar?<span class="chev"></span></summary>
+                        <p class="pb-2 text-[1.0625rem] leading-relaxed text-brand-200">Sí, mientras la reserva esté pendiente o confirmada. Hágalo desde Mis reservas.</p>
+                    </details>
+                    <details>
+                        <summary>¿Cuántas personas caben?<span class="chev"></span></summary>
+                        <p class="pb-2 text-[1.0625rem] leading-relaxed text-brand-200">Cada habitación indica su capacidad. El formulario de reserva no deja pasar de ese número.</p>
+                    </details>
+                </div>
+
+                <div class="mt-12 flex flex-col gap-5 sm:flex-row sm:items-center">
+                    <a href="#habitaciones" class="btn btn-primary btn-press min-h-[52px] px-7 text-base">Elegir habitación</a>
+                    @guest
+                        <a href="{{ route('register') }}" class="text-lg underline decoration-gold-400 decoration-2 underline-offset-4 hover:text-gold-300">Crear mi cuenta</a>
+                    @endguest
+                </div>
+            </div>
+
+            <div class="relative order-1 lg:order-2 lg:col-span-6 lg:col-start-7" data-stagger>
+                <img src="{{ asset('images/ambiente/arboles.jpg') }}" alt="Ventana de muchos paneles que da a los árboles"
+                     width="1600" height="2000" loading="lazy" data-drift
+                     class="aspect-[4/5] w-full rounded-b-[14px] object-cover lg:aspect-[3/4]">
+                <img src="{{ asset('images/ambiente/ventana.jpg') }}" alt="Silla de madera junto a una ventana con cortinas"
+                     width="1600" height="2000" loading="lazy"
+                     class="absolute -bottom-10 right-4 aspect-square w-[38%] rounded-[14px] object-cover lg:-left-10 lg:right-auto lg:w-1/3">
+            </div>
+        </div>
+    </section>
+
 </x-site-layout>

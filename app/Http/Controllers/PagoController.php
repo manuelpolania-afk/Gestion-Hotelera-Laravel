@@ -20,7 +20,7 @@ class PagoController extends Controller
 
         if ($reserva->estado_reserva !== 'Pendiente') {
             return redirect()->route('reservas.mias')
-                             ->with('success', 'Esta reserva no está pendiente de pago.');
+                ->with('success', 'Esta reserva no está pendiente de pago.');
         }
 
         $reserva->load('habitacion', 'detalle');
@@ -38,7 +38,7 @@ class PagoController extends Controller
 
         if ($reserva->estado_reserva !== 'Pendiente') {
             return redirect()->route('reservas.mias')
-                             ->with('success', 'Esta reserva no está pendiente de pago.');
+                ->with('success', 'Esta reserva no está pendiente de pago.');
         }
 
         // El usuario puede escribir el número con espacios/guiones (como en el placeholder);
@@ -48,25 +48,25 @@ class PagoController extends Controller
         ]);
 
         $data = $request->validate([
-            'metodo_pago'      => ['required', 'in:Tarjeta,PSE,Efectivo'],
-            'titular'          => ['required_if:metodo_pago,Tarjeta', 'nullable', 'string', 'max:100'],
-            'numero_tarjeta'   => ['required_if:metodo_pago,Tarjeta', 'nullable', 'digits_between:13,19'],
+            'metodo_pago' => ['required', 'in:Tarjeta,PSE,Efectivo'],
+            'titular' => ['required_if:metodo_pago,Tarjeta', 'nullable', 'string', 'max:100'],
+            'numero_tarjeta' => ['required_if:metodo_pago,Tarjeta', 'nullable', 'digits_between:13,19'],
             'fecha_expiracion' => ['required_if:metodo_pago,Tarjeta', 'nullable', 'date_format:m/y', 'after:today'],
-            'cvv'              => ['required_if:metodo_pago,Tarjeta', 'nullable', 'digits_between:3,4'],
+            'cvv' => ['required_if:metodo_pago,Tarjeta', 'nullable', 'digits_between:3,4'],
         ], [], [
-            'titular'          => 'nombre del titular',
-            'numero_tarjeta'   => 'número de tarjeta',
+            'titular' => 'nombre del titular',
+            'numero_tarjeta' => 'número de tarjeta',
             'fecha_expiracion' => 'fecha de expiración',
         ]);
 
-        $aprobado = $this->simularAprobacion($data);
+        $aprobado = Pago::simularAprobacion($data['metodo_pago'], $data['numero_tarjeta'] ?? null);
 
         $pago = Pago::create([
-            'reserva_id'          => $reserva->id,
-            'metodo_pago'         => $data['metodo_pago'],
-            'estado_pago'         => $aprobado ? 'Aprobado' : 'Rechazado',
-            'monto'               => $reserva->sub_total,
-            'referencia'          => 'PAY-'.strtoupper(Str::random(8)),
+            'reserva_id' => $reserva->id,
+            'metodo_pago' => $data['metodo_pago'],
+            'estado_pago' => $aprobado ? 'Aprobado' : 'Rechazado',
+            'monto' => $reserva->sub_total,
+            'referencia' => 'PAY-'.strtoupper(Str::random(8)),
             'tarjeta_enmascarada' => isset($data['numero_tarjeta'])
                 ? '**** **** **** '.substr($data['numero_tarjeta'], -4)
                 : null,
@@ -82,7 +82,7 @@ class PagoController extends Controller
         $reserva->update(['estado_reserva' => 'Confirmada']);
 
         return redirect()->route('pagos.factura', $reserva)
-                         ->with('success', "Pago aprobado (simulado). Referencia {$pago->referencia}. Tu reserva quedó Confirmada.");
+            ->with('success', "Pago aprobado (simulado). Referencia {$pago->referencia}. Tu reserva quedó Confirmada.");
     }
 
     /**
@@ -103,20 +103,6 @@ class PagoController extends Controller
         $noches = (int) $reserva->detalle->fecha_ingreso->diffInDays($reserva->detalle->fecha_salida);
 
         return view('pagos.factura', compact('reserva', 'pago', 'noches'));
-    }
-
-    /**
-     * Simula la respuesta de una pasarela: la tarjeta terminada en 0000 siempre
-     * se rechaza (caso de prueba); el resto de métodos se aprueban con un 90%
-     * de probabilidad para imitar el comportamiento real sin cobrar nada.
-     */
-    private function simularAprobacion(array $data): bool
-    {
-        if (($data['metodo_pago'] ?? null) === 'Tarjeta' && str_ends_with($data['numero_tarjeta'] ?? '', '0000')) {
-            return false;
-        }
-
-        return random_int(1, 100) <= 90;
     }
 
     private function autorizarPropietario(Reserva $reserva): void

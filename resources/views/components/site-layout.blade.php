@@ -7,9 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title ? $title . ' — ' : '' }}{{ config('app.name', 'Hotel') }}</title>
+    <link rel="preconnect" href="https://api.fontshare.com">
+    <link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+    <script>document.documentElement.classList.add('js')</script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-brand-50 font-sans text-brand-900">
+<body class="min-h-screen bg-paper font-sans text-brand-950">
     <div class="flex min-h-screen flex-col">
         @include('layouts.navigation')
 
@@ -17,42 +20,46 @@
             {{ $slot }}
         </main>
 
-        <footer class="mt-16 bg-brand-900 text-brand-200">
-            <div class="container-page grid gap-8 py-12 sm:grid-cols-2 lg:grid-cols-4">
-                <div class="sm:col-span-2 lg:col-span-2">
-                    <div class="flex items-center gap-2.5 text-white">
-                        <span class="grid h-9 w-9 place-items-center rounded-xl bg-gold-400 text-brand-900">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75M3 3h12m-.75 4.5H21" /></svg>
-                        </span>
-                        <span class="font-display text-lg font-bold">{{ config('app.name', 'Hotel') }}</span>
+        {{-- Pie: el reverso de una postal --}}
+        <footer class="bg-brand-950 pb-8 pt-24 text-brand-950 sm:pt-32">
+            <div class="wrap">
+                <div data-stagger class="postcard mx-auto max-w-[1180px] rounded-b-[14px] bg-paper px-6 pb-8 sm:px-12">
+                    <div class="grid gap-12 md:grid-cols-2 md:gap-16">
+                        <div>
+                            <p class="text-[2rem] font-medium leading-tight tracking-[-0.03em]">Lo esperamos en casa.</p>
+                            <p class="step-body mt-5 max-w-[36ch] text-brand-800">
+                                Escríbanos para lo que necesite antes de llegar. La recepción atiende día y noche,
+                                y su reserva queda guardada en su cuenta.
+                            </p>
+                            <p class="mt-8 text-[2.25rem] font-medium leading-none tracking-[-0.04em] sm:text-[3rem]">
+                                {{ config('app.name', 'Hotel') }}
+                            </p>
+                        </div>
+
+                        <div class="relative">
+                            <figure class="absolute right-0 top-0 w-16 bg-white p-1.5 sm:w-[88px]" style="transform: rotate(3deg)">
+                                <img src="{{ asset('images/ambiente/cafe.jpg') }}" alt="Tazas y tetera sobre una mesa de madera"
+                                     width="88" height="117" loading="lazy" class="aspect-[3/4] w-full object-cover">
+                            </figure>
+
+                            <ul class="space-y-3 pt-24 text-lg sm:pt-28">
+                                <li><a href="mailto:reservas@hotel.test" class="link-under">reservas@hotel.test</a></li>
+                                <li>Recepción abierta las 24 horas</li>
+                                <li><a href="{{ route('home') }}#habitaciones" class="link-under">Ver habitaciones libres</a></li>
+                                @guest
+                                    <li><a href="{{ route('login') }}" class="link-under">Iniciar sesión</a> o <a href="{{ route('register') }}" class="link-under">crear cuenta</a></li>
+                                @else
+                                    <li><a href="{{ route('reservas.mias') }}" class="link-under">Mis reservas</a></li>
+                                @endguest
+                            </ul>
+                        </div>
                     </div>
-                    <p class="mt-4 max-w-sm text-sm text-brand-300">
-                        Habitaciones cómodas y bien ubicadas. Reserva en línea de forma rápida y segura.
+
+                    <p class="step-small mx-auto mt-16 max-w-[70ch] text-center text-brand-600">
+                        &copy; {{ date('Y') }} {{ config('app.name', 'Hotel') }}.
+                        Fotografías de ambiente: Dominik Martin, David Mao, Logan Adermatt, Breather, Martin Wessely,
+                        André Freitas y Luke Chesser, vía Unsplash (licencia Unsplash).
                     </p>
-                </div>
-                <div>
-                    <h3 class="font-display text-sm font-semibold uppercase tracking-wide text-white">Enlaces</h3>
-                    <ul class="mt-4 space-y-2 text-sm">
-                        <li><a href="{{ route('home') }}" class="hover:text-white">Habitaciones</a></li>
-                        @guest
-                            <li><a href="{{ route('login') }}" class="hover:text-white">Iniciar sesión</a></li>
-                            <li><a href="{{ route('register') }}" class="hover:text-white">Registrarse</a></li>
-                        @else
-                            <li><a href="{{ route('reservas.mias') }}" class="hover:text-white">Mis reservas</a></li>
-                        @endguest
-                    </ul>
-                </div>
-                <div>
-                    <h3 class="font-display text-sm font-semibold uppercase tracking-wide text-white">Contacto</h3>
-                    <ul class="mt-4 space-y-2 text-sm">
-                        <li>Recepción 24 horas</li>
-                        <li>reservas@hotel.test</li>
-                    </ul>
-                </div>
-            </div>
-            <div class="border-t border-white/10">
-                <div class="container-page py-5 text-center text-xs text-brand-400">
-                    &copy; {{ date('Y') }} {{ config('app.name', 'Hotel') }}. Todos los derechos reservados.
                 </div>
             </div>
         </footer>

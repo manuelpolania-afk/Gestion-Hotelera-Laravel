@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Support\Facades\DB;
 
 class Reserva extends Model
 {
@@ -21,7 +20,7 @@ class Reserva extends Model
     ];
 
     protected $casts = [
-        'fecha'     => 'date',
+        'fecha' => 'date',
         'sub_total' => 'decimal:2',
     ];
 
@@ -55,6 +54,36 @@ class Reserva extends Model
     }
 
     // ── Métodos de negocio ────────────────────────────────────
+
+    /**
+     * Indica si la habitación ya tiene una reserva no cancelada que se cruce
+     * con el rango [fechaIngreso, fechaSalida).
+     */
+    public static function haySolapamiento(int $habitacionId, string $fechaIngreso, string $fechaSalida): bool
+    {
+        return static::where('habitacion_id', $habitacionId)
+            ->where('estado_reserva', '<>', 'Cancelada')
+            ->whereHas('detalle', fn (Builder $q) => $q
+                ->where('fecha_ingreso', '<', $fechaSalida)
+                ->where('fecha_salida', '>', $fechaIngreso)
+            )
+            ->exists();
+    }
+
+    /**
+     * Crea una notificación de nueva reserva para cada administrador.
+     */
+    public function notificarAdministradores(User $cliente): void
+    {
+        $mensaje = "Nueva reserva de {$cliente->name} para la habitación «{$this->habitacion->nombre_habitacion}».";
+
+        User::administradores()->get()->each(fn (User $admin) => Notificacion::create([
+            'user_id' => $admin->id,
+            'reserva_id' => $this->id,
+            'mensaje' => $mensaje,
+            'leida' => false,
+        ]));
+    }
 
     /**
      * Finaliza todas las reservas Confirmadas cuya fecha_salida ya pasó.
